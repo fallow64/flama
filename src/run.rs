@@ -5,7 +5,7 @@ use crate::{
     lexer::Lexer,
     logger,
     parser::{
-        ast::{new_node_ptr, Declaration, NodePtr, Program},
+        ast::{new_node_ptr, Section, NodePtr, Program},
         ast_printer, Parser,
     },
 };
@@ -16,19 +16,18 @@ pub fn run(source: String, path_pointer: Rc<String>) {
 
     // Collect all declarations and errors.
     let mut declarations = vec![];
-    let mut errors = vec![];
+    let mut errored = false;
     for result in parser {
         match result {
             Ok(declaration) => declarations.push(declaration),
-            Err(error) => errors.push(error),
+            Err(error) => {
+                logger::report_error(error);
+                errored = true;
+            },
         }
     }
 
-    // If there are any errors, report them and exit.
-    if errors.len() != 0 {
-        for error in errors {
-            logger::report_error(error);
-        }
+    if errored {
         process::exit(1);
     }
 
@@ -36,7 +35,7 @@ pub fn run(source: String, path_pointer: Rc<String>) {
         declarations
             .into_iter()
             .map(new_node_ptr)
-            .collect::<Vec<NodePtr<Declaration>>>(),
+            .collect::<Vec<NodePtr<Section>>>(),
     );
 
     if let Err(err) = check::check(program.clone()) {

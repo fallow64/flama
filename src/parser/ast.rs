@@ -8,7 +8,7 @@ use crate::lexer::token::{Span, Spanned, Token};
 
 pub type NodePtr<T> = Rc<RefCell<T>>;
 
-pub type Program = Rc<Vec<NodePtr<Declaration>>>;
+pub type Program = Rc<Vec<NodePtr<Section>>>;
 
 // creates a new `NodePtr` from a value
 // create them like this incase we need to change the implementation
@@ -157,23 +157,23 @@ pub struct ExpressionStmt {
     pub expression: Expression,
 }
 
-// ------------------------- DECLARATIONS -------------------------
+// ------------------------- SECTIONS -------------------------
 
 #[derive(Debug, Clone)]
-pub enum Declaration {
-    Event(NodePtr<EventDecl>),
-    Function(NodePtr<FunctionDecl>),
+pub enum Section {
+    Event(NodePtr<EventSect>),
+    Function(NodePtr<FunctionSect>),
 }
 
 #[derive(Debug, Clone)]
-pub struct EventDecl {
+pub struct EventSect {
     pub init: Token,
     pub name: Token,
     pub body: NodePtr<BlockStmt>,
 }
 
 #[derive(Debug, Clone)]
-pub struct FunctionDecl {
+pub struct FunctionSect {
     pub init: Token,
     pub signature: FunctionSignature,
     pub body: NodePtr<BlockStmt>,
@@ -234,11 +234,11 @@ impl Spanned for Statement {
     }
 }
 
-impl Spanned for Declaration {
+impl Spanned for Section {
     fn span(&self) -> Span {
         match self {
-            Declaration::Event(sect) => sect.borrow().init.span,
-            Declaration::Function(sect) => sect.borrow().init.span,
+            Section::Event(sect) => sect.borrow().init.span,
+            Section::Function(sect) => sect.borrow().init.span,
         }
     }
 }

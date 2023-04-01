@@ -1,8 +1,8 @@
 use crate::FlamaResult;
 
 use super::ast::{
-    AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, Declaration, EventDecl,
-    Expression, ExpressionStmt, FunctionDecl, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr,
+    AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, Section, EventSect,
+    Expression, ExpressionStmt, FunctionSect, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr,
     NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr, WhileStmt,
 };
 
@@ -51,11 +51,11 @@ pub trait Visitor {
 
     fn visit_event_decl(
         &mut self,
-        decl: NodePtr<EventDecl>,
+        decl: NodePtr<EventSect>,
     ) -> FlamaResult<Self::DeclarationOutput>;
     fn visit_function_decl(
         &mut self,
-        decl: NodePtr<FunctionDecl>,
+        decl: NodePtr<FunctionSect>,
     ) -> FlamaResult<Self::DeclarationOutput>;
 }
 
@@ -114,16 +114,16 @@ impl StatementVisitable for NodePtr<Statement> {
     }
 }
 
-impl DeclarationVisitable for Declaration {
+impl DeclarationVisitable for Section {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
         match self {
-            Declaration::Event(decl) => visitor.visit_event_decl(decl.clone()),
-            Declaration::Function(decl) => visitor.visit_function_decl(decl.clone()),
+            Section::Event(decl) => visitor.visit_event_decl(decl.clone()),
+            Section::Function(decl) => visitor.visit_function_decl(decl.clone()),
         }
     }
 }
 
-impl DeclarationVisitable for NodePtr<Declaration> {
+impl DeclarationVisitable for NodePtr<Section> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
         self.borrow().accept(visitor)
     }
@@ -233,13 +233,13 @@ impl StatementVisitable for NodePtr<ExpressionStmt> {
     }
 }
 
-impl DeclarationVisitable for NodePtr<EventDecl> {
+impl DeclarationVisitable for NodePtr<EventSect> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
         visitor.visit_event_decl(self.clone())
     }
 }
 
-impl DeclarationVisitable for NodePtr<FunctionDecl> {
+impl DeclarationVisitable for NodePtr<FunctionSect> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
         visitor.visit_function_decl(self.clone())
     }

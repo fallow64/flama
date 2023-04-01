@@ -10,8 +10,8 @@ use crate::{
 };
 
 use self::ast::{
-    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, Declaration, EventDecl,
-    Expression, ExpressionStmt, FunctionDecl, FunctionSignature, GetExpr, IfStmt, LetStmt,
+    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, Section, EventSect,
+    Expression, ExpressionStmt, FunctionSect, FunctionSignature, GetExpr, IfStmt, LetStmt,
     LiteralExpr, NameExpr, Parameter, PrintStmt, ReturnStmt, SetExpr, Statement, TypeExpression,
     UnaryExpr, WhileStmt,
 };
@@ -44,19 +44,19 @@ impl Parser {
         parser
     }
 
-    // ------------------------- DECLARATION -------------------------
+    // ------------------------- SECTIONS -------------------------
 
-    /// Parses the next declaration.
-    fn parse_declaration(&mut self) -> FlamaResult<Declaration> {
+    /// Parses the next section.
+    fn parse_section(&mut self) -> FlamaResult<Section> {
         match self
             .current_token
             .as_ref()
-            .expect("called parse_declaration(), but is at end")
+            .expect("called parse_section(), but is at end")
             .ttype
         {
-            TokenType::Event => Ok(Declaration::Event(new_node_ptr(self.parse_event_decl()?))),
-            TokenType::Function => Ok(Declaration::Function(new_node_ptr(
-                self.parse_function_decl()?,
+            TokenType::Event => Ok(Section::Event(new_node_ptr(self.parse_event_sect()?))),
+            TokenType::Function => Ok(Section::Function(new_node_ptr(
+                self.parse_function_sect()?,
             ))),
             _ => {
                 self.consume_multiple(&[TokenType::Event, TokenType::Function])?;
@@ -66,11 +66,11 @@ impl Parser {
     }
 
     /// `"event" <name> <block>`
-    fn parse_event_decl(&mut self) -> FlamaResult<EventDecl> {
+    fn parse_event_sect(&mut self) -> FlamaResult<EventSect> {
         let init = self.consume(TokenType::Event)?;
         let name = self.consume_multiple(&[TokenType::Identifier, TokenType::String])?;
         let block = new_node_ptr(self.parse_block_stmt()?);
-        Ok(EventDecl {
+        Ok(EventSect {
             init,
             name,
             body: block,
@@ -78,7 +78,7 @@ impl Parser {
     }
 
     /// `"fun" <name> "(" <params> ")" <block>`
-    fn parse_function_decl(&mut self) -> FlamaResult<FunctionDecl> {
+    fn parse_function_sect(&mut self) -> FlamaResult<FunctionSect> {
         let init = self.consume(TokenType::Function)?;
         let name = self.consume(TokenType::Identifier)?;
 
@@ -94,7 +94,7 @@ impl Parser {
         };
 
         let block = new_node_ptr(self.parse_block_stmt()?);
-        Ok(FunctionDecl {
+        Ok(FunctionSect {
             init,
             signature: FunctionSignature {
                 name,
@@ -749,7 +749,7 @@ impl Parser {
 }
 
 impl Iterator for Parser {
-    type Item = FlamaResult<Declaration>;
+    type Item = FlamaResult<Section>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_token.is_none() {
@@ -757,7 +757,7 @@ impl Iterator for Parser {
         } else if let Some(err) = self.queued_errors.pop() {
             Some(Err(err))
         } else {
-            Some(self.parse_declaration())
+            Some(self.parse_section())
         }
     }
 }

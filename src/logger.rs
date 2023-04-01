@@ -15,8 +15,8 @@ pub fn report_error(error: FlamaError) {
 
     // <error type>: <message>
     println!(
-        "{} {}",
-        (error_type.to_string() + ":").red().bold(),
+        "{}: {}",
+        error_type.to_string().red().bold(),
         message,
     );
 

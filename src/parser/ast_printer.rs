@@ -1,8 +1,8 @@
 use crate::{
     parser::{
         ast::{
-            AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventDecl,
-            ExpressionStmt, FunctionDecl, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr, NodePtr,
+            AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventSect,
+            ExpressionStmt, FunctionSect, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr, NodePtr,
             PrintStmt, Program, ReturnStmt, SetExpr, UnaryExpr, WhileStmt,
         },
         visitor::{DeclarationVisitable, ExpressionVisitable, StatementVisitable, Visitor},
@@ -206,7 +206,7 @@ impl Visitor for Printer {
 
     fn visit_event_decl(
         &mut self,
-        decl: NodePtr<EventDecl>,
+        decl: NodePtr<EventSect>,
     ) -> FlamaResult<Self::DeclarationOutput> {
         Ok(format!(
             "event {} {}",
@@ -217,7 +217,7 @@ impl Visitor for Printer {
 
     fn visit_function_decl(
         &mut self,
-        decl: NodePtr<FunctionDecl>,
+        decl: NodePtr<FunctionSect>,
     ) -> FlamaResult<Self::DeclarationOutput> {
         Ok(format!(
             "fn {} {}",
