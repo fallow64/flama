@@ -10,13 +10,15 @@ use crate::{
 };
 
 use self::ast::{
-    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventDecl, Expression,
-    ExpressionStmt, FunctionDecl, FunctionSignature, GetExpr, IfStmt, LetStmt, LiteralExpr,
-    NameExpr, NodePtr, Parameter, PrintStmt, ReturnStmt, Declaration, SetExpr, Statement,
-    TypeExpression, UnaryExpr, WhileStmt,
+    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, Declaration, EventDecl,
+    Expression, ExpressionStmt, FunctionDecl, FunctionSignature, GetExpr, IfStmt, LetStmt,
+    LiteralExpr, NameExpr, Parameter, PrintStmt, ReturnStmt, SetExpr, Statement, TypeExpression,
+    UnaryExpr, WhileStmt,
 };
 
 pub mod ast;
+pub mod ast_printer;
+pub mod visitor;
 
 pub struct Parser {
     lexer: Lexer,
@@ -52,8 +54,10 @@ impl Parser {
             .expect("called parse_declaration(), but is at end")
             .ttype
         {
-            TokenType::Event => Ok(Declaration::Event(self.parse_event_decl()?)),
-            TokenType::Function => Ok(Declaration::Function(self.parse_function_decl()?)),
+            TokenType::Event => Ok(Declaration::Event(new_node_ptr(self.parse_event_decl()?))),
+            TokenType::Function => Ok(Declaration::Function(new_node_ptr(
+                self.parse_function_decl()?,
+            ))),
             _ => {
                 self.consume_multiple(&[TokenType::Event, TokenType::Function])?;
                 unreachable!("should've errored out beforehand. update consume_multiple()")
@@ -66,7 +70,11 @@ impl Parser {
         let init = self.consume(TokenType::Event)?;
         let name = self.consume_multiple(&[TokenType::Identifier, TokenType::String])?;
         let block = new_node_ptr(self.parse_block_stmt()?);
-        Ok(EventDecl { init, name, block })
+        Ok(EventDecl {
+            init,
+            name,
+            body: block,
+        })
     }
 
     /// `"fun" <name> "(" <params> ")" <block>`
@@ -93,7 +101,7 @@ impl Parser {
                 params,
                 return_type,
             },
-            block,
+            body: block,
         })
     }
 
@@ -107,15 +115,19 @@ impl Parser {
             .expect("called parse_statement(), but is at end")
             .ttype
         {
-            TokenType::LBrace => Ok(Statement::Block(self.parse_block_stmt()?)),
-            TokenType::Print => Ok(Statement::Print(self.parse_print_stmt()?)),
-            TokenType::If => Ok(Statement::If(self.parse_if_stmt()?)),
-            TokenType::While => Ok(Statement::While(self.parse_while_stmt()?)),
-            TokenType::Continue => Ok(Statement::Continue(self.parse_continue_stmt()?)),
-            TokenType::Break => Ok(Statement::Break(self.parse_break_stmt()?)),
-            TokenType::Return => Ok(Statement::Return(self.parse_return_stmt()?)),
-            TokenType::Let => Ok(Statement::Let(self.parse_let_stmt()?)),
-            _ => Ok(Statement::Expression(self.parse_expression_stmt()?)),
+            TokenType::LBrace => Ok(Statement::Block(new_node_ptr(self.parse_block_stmt()?))),
+            TokenType::Print => Ok(Statement::Print(new_node_ptr(self.parse_print_stmt()?))),
+            TokenType::If => Ok(Statement::If(new_node_ptr(self.parse_if_stmt()?))),
+            TokenType::While => Ok(Statement::While(new_node_ptr(self.parse_while_stmt()?))),
+            TokenType::Continue => Ok(Statement::Continue(new_node_ptr(
+                self.parse_continue_stmt()?,
+            ))),
+            TokenType::Break => Ok(Statement::Break(new_node_ptr(self.parse_break_stmt()?))),
+            TokenType::Return => Ok(Statement::Return(new_node_ptr(self.parse_return_stmt()?))),
+            TokenType::Let => Ok(Statement::Let(new_node_ptr(self.parse_let_stmt()?))),
+            _ => Ok(Statement::Expression(new_node_ptr(
+                self.parse_expression_stmt()?,
+            ))),
         }
     }
 
@@ -124,10 +136,13 @@ impl Parser {
         let init = self.consume(TokenType::LBrace)?;
         let mut stmts = vec![];
         while !self.is_match(TokenType::RBrace) {
-            stmts.push(new_node_ptr(self.parse_statement()?));
+            stmts.push(self.parse_statement()?);
         }
         self.advance(); // consume the }
-        Ok(BlockStmt { init, stmts })
+        Ok(BlockStmt {
+            init,
+            statements: stmts,
+        })
     }
 
     /// `"print" <expr> ";"`
@@ -145,7 +160,7 @@ impl Parser {
     /// `"if" <expr> <block> ("else" <block>)?`
     fn parse_if_stmt(&mut self) -> FlamaResult<IfStmt> {
         let init = self.consume(TokenType::If)?;
-        let condition = new_node_ptr(self.parse_expression()?);
+        let condition = self.parse_expression()?;
         let consequence = new_node_ptr(self.parse_block_stmt()?);
         let alternative = if self.is_match(TokenType::Else) {
             self.advance();
@@ -157,7 +172,7 @@ impl Parser {
         Ok(IfStmt {
             init,
             condition,
-            consequence,
+            body: consequence,
             alternative,
         })
     }
@@ -165,12 +180,12 @@ impl Parser {
     /// `"while" <expr> <block>`
     fn parse_while_stmt(&mut self) -> FlamaResult<WhileStmt> {
         let init = self.consume(TokenType::While)?;
-        let condition = new_node_ptr(self.parse_expression()?);
+        let condition = self.parse_expression()?;
         let consequence = new_node_ptr(self.parse_block_stmt()?);
         Ok(WhileStmt {
             init,
             condition,
-            consequence,
+            body: consequence,
         })
     }
 
@@ -195,7 +210,7 @@ impl Parser {
         let value = if self.is_match(TokenType::SemiColon) {
             None
         } else {
-            Some(new_node_ptr(self.parse_expression()?))
+            Some(self.parse_expression()?)
         };
         self.consume(TokenType::SemiColon)?;
 
@@ -217,7 +232,7 @@ impl Parser {
 
         let value = if self.is_match(TokenType::Assign) {
             self.advance();
-            Some(new_node_ptr(self.parse_expression()?))
+            Some(self.parse_expression()?)
         } else {
             None
         };
@@ -234,9 +249,9 @@ impl Parser {
 
     /// `<expr> ";"`
     fn parse_expression_stmt(&mut self) -> FlamaResult<ExpressionStmt> {
-        let value = new_node_ptr(self.parse_expression()?);
+        let value = self.parse_expression()?;
         self.consume(TokenType::SemiColon)?;
-        Ok(ExpressionStmt { value })
+        Ok(ExpressionStmt { expression: value })
     }
 
     // ------------------------- EXPRESSIONS -------------------------
@@ -254,17 +269,17 @@ impl Parser {
             let rhs = self.parse_or()?;
 
             expr = match expr {
-                Expression::Name(n) => Expression::Assign(AssignExpr {
+                Expression::Name(n) => Expression::Assign(new_node_ptr(AssignExpr {
                     init: operator,
-                    name: n.init,
-                    value: new_node_ptr(rhs),
-                }),
-                Expression::Get(g) => Expression::Set(SetExpr {
+                    name: n.borrow().init.clone(),
+                    value: rhs,
+                })),
+                Expression::Get(g) => Expression::Set(new_node_ptr(SetExpr {
                     init: operator,
-                    object: g.object,
-                    name: g.name,
-                    value: new_node_ptr(rhs),
-                }),
+                    object: g.borrow().object.clone(),
+                    name: g.borrow().name.clone(),
+                    value: rhs,
+                })),
                 _ => {
                     return Err(
                         self.make_error(operator.span, "invalid assignment target".to_string())
@@ -288,12 +303,12 @@ impl Parser {
                 .get_operator_binary()
                 .expect("not binary operator, but is match");
 
-            expr = Expression::Binary(BinaryExpr {
+            expr = Expression::Binary(new_node_ptr(BinaryExpr {
                 init: operator,
-                left: new_node_ptr(expr),
+                left: expr,
                 operator: bin_op,
-                right: new_node_ptr(rhs),
-            });
+                right: rhs,
+            }));
         }
 
         Ok(expr)
@@ -311,12 +326,12 @@ impl Parser {
                 .get_operator_binary()
                 .expect("not binary operator, but is match");
 
-            expr = Expression::Binary(BinaryExpr {
+            expr = Expression::Binary(new_node_ptr(BinaryExpr {
                 init: operator,
-                left: new_node_ptr(expr),
+                left: expr,
                 operator: bin_op,
-                right: new_node_ptr(rhs),
-            });
+                right: rhs,
+            }));
         }
 
         Ok(expr)
@@ -334,12 +349,12 @@ impl Parser {
                 .get_operator_binary()
                 .expect("not binary operator, but is match");
 
-            expr = Expression::Binary(BinaryExpr {
+            expr = Expression::Binary(new_node_ptr(BinaryExpr {
                 init: operator,
-                left: new_node_ptr(expr),
+                left: expr,
                 operator: bin_op,
-                right: new_node_ptr(rhs),
-            });
+                right: rhs,
+            }));
         }
 
         Ok(expr)
@@ -362,12 +377,12 @@ impl Parser {
                 .get_operator_binary()
                 .expect("not binary operator, but is match");
 
-            expr = Expression::Binary(BinaryExpr {
+            expr = Expression::Binary(new_node_ptr(BinaryExpr {
                 init: operator,
-                left: new_node_ptr(expr),
+                left: expr,
                 operator: bin_op,
-                right: new_node_ptr(rhs),
-            });
+                right: rhs,
+            }));
         }
 
         Ok(expr)
@@ -385,12 +400,12 @@ impl Parser {
                 .get_operator_binary()
                 .expect("not binary operator, but is match");
 
-            expr = Expression::Binary(BinaryExpr {
+            expr = Expression::Binary(new_node_ptr(BinaryExpr {
                 init: operator,
-                left: new_node_ptr(expr),
+                left: expr,
                 operator: bin_op,
-                right: new_node_ptr(rhs),
-            });
+                right: rhs,
+            }));
         }
 
         Ok(expr)
@@ -408,12 +423,12 @@ impl Parser {
                 .get_operator_binary()
                 .expect("not binary operator, but is match");
 
-            expr = Expression::Binary(BinaryExpr {
+            expr = Expression::Binary(new_node_ptr(BinaryExpr {
                 init: operator,
-                left: new_node_ptr(expr),
+                left: expr,
                 operator: bin_op,
-                right: new_node_ptr(rhs),
-            });
+                right: rhs,
+            }));
         }
 
         Ok(expr)
@@ -430,11 +445,11 @@ impl Parser {
                 .get_operator_unary()
                 .expect("not unary operator, but is match");
 
-            let expr = Expression::Unary(UnaryExpr {
+            let expr = Expression::Unary(new_node_ptr(UnaryExpr {
                 init: operator,
                 operator: un_op,
-                right: new_node_ptr(rhs),
-            });
+                right: rhs,
+            }));
 
             Ok(expr)
         } else {
@@ -451,11 +466,11 @@ impl Parser {
             if self.is_match(TokenType::Dot) {
                 let init = self.consume(TokenType::Dot)?;
                 let name = self.consume(TokenType::Identifier)?;
-                expr = Expression::Get(GetExpr {
+                expr = Expression::Get(new_node_ptr(GetExpr {
                     init,
-                    object: new_node_ptr(expr),
+                    object: expr,
                     name,
-                });
+                }));
             } else if self.is_match(TokenType::LParen) {
                 let init = self.consume(TokenType::LParen)?;
 
@@ -463,11 +478,11 @@ impl Parser {
 
                 self.consume(TokenType::RParen)?;
 
-                expr = Expression::Call(CallExpr {
+                expr = Expression::Call(new_node_ptr(CallExpr {
                     init,
-                    callee: new_node_ptr(expr),
+                    callee: expr,
                     args,
-                });
+                }));
             } else {
                 break;
             }
@@ -491,10 +506,10 @@ impl Parser {
                 let lexeme = &init.lexeme[1..init.lexeme.len() - 1];
                 let unescaped = Self::unescape_string(lexeme);
 
-                let expr = Expression::Literal(LiteralExpr {
+                let expr = Expression::Literal(new_node_ptr(LiteralExpr {
                     init,
                     kind: unescaped.into(),
-                });
+                }));
                 Ok(expr)
             }
             TokenType::Number => {
@@ -504,25 +519,25 @@ impl Parser {
                     .parse::<f64>()
                     .expect("invalid number parsed?");
 
-                let expr = Expression::Literal(LiteralExpr {
+                let expr = Expression::Literal(new_node_ptr(LiteralExpr {
                     init,
                     kind: number.into(),
-                });
+                }));
                 Ok(expr)
             }
             TokenType::Identifier => {
                 let name = init.lexeme.clone();
 
-                let expr = Expression::Name(NameExpr { init, name });
+                let expr = Expression::Name(new_node_ptr(NameExpr { init, name }));
                 Ok(expr)
             }
             TokenType::True | TokenType::False => {
                 let value = init.ttype == TokenType::True;
 
-                let expr = Expression::Literal(LiteralExpr {
+                let expr = Expression::Literal(new_node_ptr(LiteralExpr {
                     init,
                     kind: value.into(),
-                });
+                }));
                 Ok(expr)
             }
             _ => Err(self.make_error(init.span, "expected expression".to_string())),
@@ -583,12 +598,12 @@ impl Parser {
     }
 
     /// Returns a vector of expressions. Does not consume the opening or closing tokens.
-    fn get_arguments(&mut self, ending_type: TokenType) -> FlamaResult<Vec<NodePtr<Expression>>> {
+    fn get_arguments(&mut self, ending_type: TokenType) -> FlamaResult<Vec<Expression>> {
         let mut args = vec![];
 
         while !self.is_match(ending_type) {
             let expr = self.parse_expression()?;
-            args.push(new_node_ptr(expr));
+            args.push(expr);
 
             if !self.is_match(ending_type) {
                 self.consume(TokenType::Comma)?;

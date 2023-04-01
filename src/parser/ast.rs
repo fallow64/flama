@@ -1,183 +1,187 @@
-use std::rc::Rc;
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    rc::Rc,
+};
 
 use crate::lexer::token::{Span, Spanned, Token};
 
-pub type NodePtr<T> = Rc<T>;
+pub type NodePtr<T> = Rc<RefCell<T>>;
 
-pub type Program = Vec<NodePtr<Declaration>>;
+pub type Program = Rc<Vec<NodePtr<Declaration>>>;
 
 // creates a new `NodePtr` from a value
 // create them like this incase we need to change the implementation
 pub fn new_node_ptr<T>(val: T) -> NodePtr<T> {
-    Rc::new(val)
+    Rc::new(RefCell::new(val))
 }
 
 // ------------------------- EXPRESSIONS -------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
-    Unary(UnaryExpr),
-    Binary(BinaryExpr),
-    Literal(LiteralExpr),
-    Name(NameExpr),
-    Call(CallExpr),
-    Assign(AssignExpr),
-    Get(GetExpr),
-    Set(SetExpr),
+    Unary(NodePtr<UnaryExpr>),
+    Binary(NodePtr<BinaryExpr>),
+    Literal(NodePtr<LiteralExpr>),
+    Name(NodePtr<NameExpr>),
+    Call(NodePtr<CallExpr>),
+    Assign(NodePtr<AssignExpr>),
+    Get(NodePtr<GetExpr>),
+    Set(NodePtr<SetExpr>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnaryExpr {
     pub init: Token,
     pub operator: UnaryOperator,
-    pub right: NodePtr<Expression>,
+    pub right: Expression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BinaryExpr {
     pub init: Token,
-    pub left: NodePtr<Expression>,
+    pub left: Expression,
     pub operator: BinaryOperator,
-    pub right: NodePtr<Expression>,
+    pub right: Expression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LiteralExpr {
     pub init: Token,
     pub kind: LiteralKind,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NameExpr {
     pub init: Token,
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallExpr {
     pub init: Token,
-    pub callee: NodePtr<Expression>,
-    pub args: Vec<NodePtr<Expression>>,
+    pub callee: Expression,
+    pub args: Vec<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AssignExpr {
     pub init: Token,
     pub name: Token,
-    pub value: NodePtr<Expression>,
+    pub value: Expression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GetExpr {
     pub init: Token,
-    pub object: NodePtr<Expression>,
+    pub object: Expression,
     pub name: Token,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SetExpr {
     pub init: Token,
-    pub object: NodePtr<Expression>,
+    pub object: Expression,
     pub name: Token,
-    pub value: NodePtr<Expression>,
+    pub value: Expression,
 }
 
 // ------------------------- STATEMENTS -------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
-    Block(BlockStmt),
-    Print(PrintStmt),
-    If(IfStmt),
-    While(WhileStmt),
-    Continue(ContinueStmt),
-    Break(BreakStmt),
-    Return(ReturnStmt),
-    Let(LetStmt),
-    Expression(ExpressionStmt),
+    Block(NodePtr<BlockStmt>),
+    Print(NodePtr<PrintStmt>),
+    If(NodePtr<IfStmt>),
+    While(NodePtr<WhileStmt>),
+    Continue(NodePtr<ContinueStmt>),
+    Break(NodePtr<BreakStmt>),
+    Return(NodePtr<ReturnStmt>),
+    Let(NodePtr<LetStmt>),
+    Expression(NodePtr<ExpressionStmt>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockStmt {
     pub init: Token,
-    pub stmts: Vec<NodePtr<Statement>>,
+    pub statements: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PrintStmt {
     pub init: Token,
-    pub values: Vec<NodePtr<Expression>>,
+    pub values: Vec<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfStmt {
     pub init: Token,
-    pub condition: NodePtr<Expression>,
-    pub consequence: NodePtr<BlockStmt>,
+    pub condition: Expression,
+    pub body: NodePtr<BlockStmt>,
     pub alternative: Option<NodePtr<BlockStmt>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WhileStmt {
     pub init: Token,
-    pub condition: NodePtr<Expression>,
-    pub consequence: NodePtr<BlockStmt>,
+    pub condition: Expression,
+    pub body: NodePtr<BlockStmt>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ContinueStmt {
     pub init: Token,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BreakStmt {
     pub init: Token,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReturnStmt {
     pub init: Token,
-    pub value: Option<NodePtr<Expression>>,
+    pub value: Option<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LetStmt {
     pub init: Token,
     pub name: Token,
     pub type_annotation: Option<TypeExpression>,
-    pub value: Option<NodePtr<Expression>>,
+    pub value: Option<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExpressionStmt {
-    pub value: NodePtr<Expression>,
+    pub expression: Expression,
 }
 
 // ------------------------- DECLARATIONS -------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Declaration {
-    Event(EventDecl),
-    Function(FunctionDecl),
+    Event(NodePtr<EventDecl>),
+    Function(NodePtr<FunctionDecl>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EventDecl {
     pub init: Token,
     pub name: Token,
-    pub block: NodePtr<BlockStmt>,
+    pub body: NodePtr<BlockStmt>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionDecl {
     pub init: Token,
     pub signature: FunctionSignature,
-    pub block: NodePtr<BlockStmt>,
+    pub body: NodePtr<BlockStmt>,
 }
 
 // ------------------------- TYPED EXPRESSIONS -------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TypeExpression {
     // TODO: node pointers?
     Number(Token),
@@ -186,17 +190,15 @@ pub enum TypeExpression {
     Identifier(Token),
 }
 
-// ------------------------ TRAITS --------------------------
-pub trait Visitor {
-    type ExpressionOutput;
-    type StatementOutput;
-    type DeclarationOutput;
-    type TypeExpressionOutput;
-
-    fn visit_expression(&mut self, expr: &Expression) -> Self::ExpressionOutput;
-    fn visit_statement(&mut self, stmt: &Statement) -> Self::StatementOutput;
-    fn visit_declaration(&mut self, decl: &Declaration) -> Self::DeclarationOutput;
-    fn visit_type_expression(&mut self, type_expr: &TypeExpression) -> Self::TypeExpressionOutput;
+impl Display for TypeExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeExpression::Number(token) => write!(f, "{}", token.lexeme),
+            TypeExpression::String(token) => write!(f, "{}", token.lexeme),
+            TypeExpression::Boolean(token) => write!(f, "{}", token.lexeme),
+            TypeExpression::Identifier(token) => write!(f, "{}", token.lexeme),
+        }
+    }
 }
 
 // ------------------------ SPANNED IMPLEMENTATIONS --------------------------
@@ -204,14 +206,14 @@ pub trait Visitor {
 impl Spanned for Expression {
     fn span(&self) -> Span {
         match self {
-            Expression::Unary(expr) => expr.init.span,
-            Expression::Binary(expr) => expr.init.span,
-            Expression::Literal(literal) => literal.init.span,
-            Expression::Name(expr) => expr.init.span,
-            Expression::Call(expr) => expr.init.span,
-            Expression::Assign(expr) => expr.init.span,
-            Expression::Get(expr) => expr.init.span,
-            Expression::Set(expr) => expr.init.span,
+            Expression::Unary(expr) => expr.borrow().init.span,
+            Expression::Binary(expr) => expr.borrow().init.span,
+            Expression::Literal(literal) => literal.borrow().init.span,
+            Expression::Name(expr) => expr.borrow().init.span,
+            Expression::Call(expr) => expr.borrow().init.span,
+            Expression::Assign(expr) => expr.borrow().init.span,
+            Expression::Get(expr) => expr.borrow().init.span,
+            Expression::Set(expr) => expr.borrow().init.span,
         }
     }
 }
@@ -219,15 +221,15 @@ impl Spanned for Expression {
 impl Spanned for Statement {
     fn span(&self) -> Span {
         match self {
-            Statement::Block(stmt) => stmt.init.span,
-            Statement::Print(stmt) => stmt.init.span,
-            Statement::If(stmt) => stmt.init.span,
-            Statement::While(stmt) => stmt.init.span,
-            Statement::Continue(stmt) => stmt.init.span,
-            Statement::Break(stmt) => stmt.init.span,
-            Statement::Return(stmt) => stmt.init.span,
-            Statement::Let(stmt) => stmt.init.span,
-            Statement::Expression(stmt) => stmt.value.span(),
+            Statement::Block(stmt) => stmt.borrow().init.span,
+            Statement::Print(stmt) => stmt.borrow().init.span,
+            Statement::If(stmt) => stmt.borrow().init.span,
+            Statement::While(stmt) => stmt.borrow().init.span,
+            Statement::Continue(stmt) => stmt.borrow().init.span,
+            Statement::Break(stmt) => stmt.borrow().init.span,
+            Statement::Return(stmt) => stmt.borrow().init.span,
+            Statement::Let(stmt) => stmt.borrow().init.span,
+            Statement::Expression(stmt) => stmt.borrow().expression.span(),
         }
     }
 }
@@ -235,8 +237,8 @@ impl Spanned for Statement {
 impl Spanned for Declaration {
     fn span(&self) -> Span {
         match self {
-            Declaration::Event(sect) => sect.init.span,
-            Declaration::Function(sect) => sect.init.span,
+            Declaration::Event(sect) => sect.borrow().init.span,
+            Declaration::Function(sect) => sect.borrow().init.span,
         }
     }
 }
@@ -254,20 +256,20 @@ impl Spanned for TypeExpression {
 
 // ------------------------- UTILITY -------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parameter {
     pub name: Token,
     pub type_annotation: TypeExpression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionSignature {
     pub name: Token,
     pub params: Vec<Parameter>,
     pub return_type: Option<TypeExpression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UnaryOperator {
     Identity,
     Negate,
@@ -276,7 +278,19 @@ pub enum UnaryOperator {
     Decrement,
 }
 
-#[derive(Debug)]
+impl Display for UnaryOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnaryOperator::Identity => write!(f, "+"),
+            UnaryOperator::Negate => write!(f, "-"),
+            UnaryOperator::Not => write!(f, "!"),
+            UnaryOperator::Increment => write!(f, "++"),
+            UnaryOperator::Decrement => write!(f, "--"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum BinaryOperator {
     Add,
     Subtract,
@@ -294,11 +308,42 @@ pub enum BinaryOperator {
     Assign,
 }
 
-#[derive(Debug)]
+impl Display for BinaryOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOperator::Add => write!(f, "+"),
+            BinaryOperator::Subtract => write!(f, "-"),
+            BinaryOperator::Divide => write!(f, "/"),
+            BinaryOperator::Multiply => write!(f, "*"),
+            BinaryOperator::Modulo => write!(f, "%"),
+            BinaryOperator::Equals => write!(f, "=="),
+            BinaryOperator::NotEq => write!(f, "!="),
+            BinaryOperator::Greater => write!(f, ">"),
+            BinaryOperator::GreaterEq => write!(f, ">="),
+            BinaryOperator::Less => write!(f, "<"),
+            BinaryOperator::LessEq => write!(f, "<="),
+            BinaryOperator::Or => write!(f, "||"),
+            BinaryOperator::And => write!(f, "&&"),
+            BinaryOperator::Assign => write!(f, "="),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum LiteralKind {
     Number(f64),
     String(String),
     Boolean(bool),
+}
+
+impl Display for LiteralKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LiteralKind::Number(n) => write!(f, "{}", n),
+            LiteralKind::String(s) => write!(f, "{}", s),
+            LiteralKind::Boolean(b) => write!(f, "{}", b),
+        }
+    }
 }
 
 impl From<f64> for LiteralKind {
