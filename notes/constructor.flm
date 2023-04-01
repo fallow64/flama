@@ -1,0 +1,45 @@
+class Rectangle {
+    height: num,
+    width: num,
+
+    function new(height: num, width: num) -> Rectangle { // rusty approach
+        return Rectangle { height, width };
+    }
+
+    // or
+
+    function constructor(self, height: num, width: num) { // pythonic approach
+        self.height = height; // in this case, the bearer of allocating the object goes to the caller (?)
+        self.width = width;
+    }
+
+    /*
+
+    Rusty Pros:
+     - Less duplicate work of allocating the object
+     - Differentiates between constructing a class and the memory of the class
+     - Less "magic", no compiler syntatic sugar
+    
+    Rusty Cons:
+     - New syntax of initializing an object
+     - `self` is unable to be used, so you would need a temp var in order to use its functions, and then return the temp var
+     - At least for classes (and not structs), there is a weaker seperation of concerns
+
+    Pythonic Pros:
+     - No need to add new syntax
+     - Most people are familiar with Python, so it would be less burdensome to learn
+     - Object is already allocated, so using `self` is easier and more intuitive.
+    
+    Pythonic Cons:
+     - Need for a special function to be differentiated
+     - Bearer of allocating goes to the caller (this could be mitigated though...)
+     - Constructors should really return the object, so some syntatic sugar would be necessary
+
+    Notes:
+     - I prefer the pythonic way. Less new syntax, and when it comes to constructors there
+       is bound to be some type of magic under the hood.
+    
+
+    */
+
+}

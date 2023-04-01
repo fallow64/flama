@@ -1,0 +1,41 @@
+event Join {
+    print("hello, player!"); // print statement for ease (not real function)
+
+    print(max(5, 2, 9, 4.5)); // declaration order does not matter
+
+}
+
+function max(...numbers: list[num]) -> num { // spread syntax for varargs
+    let maximum = numbers[0];
+
+    for number in numbers { // for x in y, for lists
+        if number > maximum { // no paranthesis around for, if, and while
+            maximum = number;
+        }
+    }
+
+    return maximum;
+}
+
+class Player {
+    name: string,
+
+    function new(name: string) -> Player {
+        return Player { name };
+    }
+
+    func generate_greeting(self) -> string {
+        return "Hello, " + self.name + "!";
+    }
+
+    function say_hi(self) {
+        df {
+            PlayerAction send_message (self.generate_greeting());
+        }
+        return;
+        
+        // alternatively
+        df PlayerAction send_message (self.generate_greeting());
+    }
+
+}

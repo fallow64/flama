@@ -1,0 +1,11 @@
+[package]
+name = "flama"
+version = "0.1.0"
+authors = ["fallow64"]
+edition = "2021"
+description = "A programming language that transpiles to DiamondFire templates."
+license = "MIT"
+publish = false # for now
+
+[dependencies]
+colored = "2.0.0"

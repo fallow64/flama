@@ -1,0 +1,30 @@
+event Join {
+    let a = 25;            // let statement
+    {                      // lexical scoping
+        let a: num = 2;    // optional type annotations
+        print(a); // 2     // print statements
+    }
+    print(a); // 25
+
+
+    let sum = 0;
+    while true {          // while loops
+        if a > 0 {        // boolean operation
+            break;        // break statement
+        }
+
+        if a == 13 {
+            continue;     // continue statement
+        }
+
+        sum = sum + a;
+    }
+}
+
+fn max(a: num, b: num) -> num {
+    if b > a {                  // if statements
+        return b;               // return statements
+    } else {                    // else branches
+        return a;
+    }
+}
