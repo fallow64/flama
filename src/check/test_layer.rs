@@ -1,20 +1,23 @@
+use std::rc::Rc;
+
 use crate::{
     parser::{
         ast::{
-            AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventSect,
-            ExpressionStmt, FunctionSect, GetExpr, IfStmt, LetStmt, LiteralExpr, LiteralKind,
-            NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr, UnaryExpr, WhileStmt,
+            AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt,
+            EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, LetStmt, LiteralExpr,
+            LiteralKind, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr, UnaryExpr,
+            WhileStmt,
         },
-        visitor::{DeclarationVisitable, ExpressionVisitable, StatementVisitable, Visitor},
+        visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
     FlamaResult,
 };
 
-pub fn test(program: Program) -> FlamaResult<()> {
+pub fn test(program: Rc<Program>) -> FlamaResult<()> {
     let mut test_layer = TestLayer {};
 
-    for declaration in program.iter() {
-        declaration.accept(&mut test_layer)?;
+    for item in program.iter() {
+        item.accept(&mut test_layer)?;
     }
 
     Ok(())
@@ -25,7 +28,7 @@ struct TestLayer;
 impl Visitor for TestLayer {
     type ExpressionOutput = ();
     type StatementOutput = ();
-    type DeclarationOutput = ();
+    type ItemOutput = ();
 
     fn visit_unary_expr(
         &mut self,
@@ -155,19 +158,21 @@ impl Visitor for TestLayer {
         Ok(())
     }
 
-    fn visit_event_decl(
-        &mut self,
-        decl: NodePtr<EventSect>,
-    ) -> FlamaResult<Self::DeclarationOutput> {
-        decl.borrow().body.accept(self)?;
+    fn visit_event_item(&mut self, item: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput> {
+        item.borrow().body.accept(self)?;
         Ok(())
     }
 
-    fn visit_function_decl(
+    fn visit_function_item(
         &mut self,
-        decl: NodePtr<FunctionSect>,
-    ) -> FlamaResult<Self::DeclarationOutput> {
-        decl.borrow().body.accept(self)?;
+        item: NodePtr<FunctionItem>,
+    ) -> FlamaResult<Self::ItemOutput> {
+        item.borrow().body.accept(self)?;
+        Ok(())
+    }
+
+    fn visit_const_item(&mut self, item: NodePtr<ConstItem>) -> FlamaResult<Self::ItemOutput> {
+        item.borrow().value.accept(self)?;
         Ok(())
     }
 }

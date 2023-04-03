@@ -1,6 +1,6 @@
 pub mod token;
 
-use std::rc::Rc;
+use std::{path::PathBuf, rc::Rc};
 
 use crate::{ErrorType, FlamaError, FlamaResult};
 
@@ -10,11 +10,11 @@ pub struct Lexer {
     source: Vec<char>,
     start: usize,
     current: usize,
-    source_path: Rc<String>,
+    source_path: Rc<PathBuf>,
 }
 
 impl Lexer {
-    pub fn new(source: String, source_path: Rc<String>) -> Self {
+    pub fn new(source: String, source_path: Rc<PathBuf>) -> Self {
         Lexer {
             source: source.chars().collect(),
             start: 0,

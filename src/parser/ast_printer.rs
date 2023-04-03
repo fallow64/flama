@@ -1,20 +1,24 @@
+use std::rc::Rc;
+
 use crate::{
     parser::{
         ast::{
-            AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventSect,
-            ExpressionStmt, FunctionSect, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr, NodePtr,
+            AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem,
+            ExpressionStmt, FunctionItem, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr, NodePtr,
             PrintStmt, Program, ReturnStmt, SetExpr, UnaryExpr, WhileStmt,
         },
-        visitor::{DeclarationVisitable, ExpressionVisitable, StatementVisitable, Visitor},
+        visitor::{ExpressionVisitable, StatementVisitable, Visitor},
     },
     FlamaResult,
 };
 
-pub fn print(program: Program) -> FlamaResult<()> {
+use super::{ast::ConstItem, visitor::ItemVisitable};
+
+pub fn print(program: Rc<Program>) -> FlamaResult<()> {
     let mut printer = Printer { indent: 0 };
 
-    for declaration in program.iter() {
-        println!("{}", declaration.borrow().accept(&mut printer)?);
+    for item in program.iter() {
+        item.accept(&mut printer)?;
     }
 
     Ok(())
@@ -27,14 +31,14 @@ struct Printer {
 impl Visitor for Printer {
     type ExpressionOutput = String;
     type StatementOutput = String;
-    type DeclarationOutput = String;
+    type ItemOutput = String;
 
     fn visit_unary_expr(
         &mut self,
         expr: NodePtr<UnaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
-            "({} {})",
+            "({}{})",
             expr.borrow().operator.to_string(),
             expr.borrow().right.accept(self)?
         ))
@@ -138,7 +142,7 @@ impl Visitor for Printer {
 
     fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput> {
         Ok(format!(
-            "if {} {}",
+            "if ({}) {}",
             stmt.borrow().condition.accept(self)?,
             stmt.borrow().body.accept(self)?
         ))
@@ -204,25 +208,36 @@ impl Visitor for Printer {
         Ok(format!("{};", stmt.borrow().expression.accept(self)?))
     }
 
-    fn visit_event_decl(
-        &mut self,
-        decl: NodePtr<EventSect>,
-    ) -> FlamaResult<Self::DeclarationOutput> {
+    fn visit_event_item(&mut self, item: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput> {
         Ok(format!(
             "event {} {}",
-            decl.borrow().name.lexeme,
-            decl.borrow().body.accept(self)?
+            item.borrow().name.lexeme,
+            item.borrow().body.accept(self)?
         ))
     }
 
-    fn visit_function_decl(
+    fn visit_function_item(
         &mut self,
-        decl: NodePtr<FunctionSect>,
-    ) -> FlamaResult<Self::DeclarationOutput> {
+        item: NodePtr<FunctionItem>,
+    ) -> FlamaResult<Self::ItemOutput> {
         Ok(format!(
             "fn {} {}",
-            decl.borrow().signature.name.lexeme,
-            decl.borrow().body.accept(self)?
+            item.borrow().signature.name.lexeme,
+            item.borrow().body.accept(self)?
+        ))
+    }
+
+    fn visit_const_item(&mut self, item: NodePtr<ConstItem>) -> FlamaResult<Self::ItemOutput> {
+        let type_annotation = match &item.borrow().type_annotation {
+            Some(type_annotation) => format!(": {}", type_annotation.to_string()),
+            None => "".to_string(),
+        };
+
+        Ok(format!(
+            "const {}{} = {}",
+            item.borrow().name.lexeme,
+            type_annotation,
+            item.borrow().value.accept(self)?
         ))
     }
 }

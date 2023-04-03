@@ -1,4 +1,4 @@
-use std::{mem, rc::Rc};
+use std::{mem, path::PathBuf, rc::Rc};
 
 use crate::{
     lexer::{
@@ -10,10 +10,10 @@ use crate::{
 };
 
 use self::ast::{
-    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, Section, EventSect,
-    Expression, ExpressionStmt, FunctionSect, FunctionSignature, GetExpr, IfStmt, LetStmt,
-    LiteralExpr, NameExpr, Parameter, PrintStmt, ReturnStmt, SetExpr, Statement, TypeExpression,
-    UnaryExpr, WhileStmt,
+    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
+    Expression, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, IfStmt, Item, LetStmt,
+    LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr, Statement, Type,
+    TypeExpression, UnaryExpr, WhileStmt,
 };
 
 pub mod ast;
@@ -23,14 +23,14 @@ pub mod visitor;
 pub struct Parser {
     lexer: Lexer,
     queued_errors: Vec<FlamaError>,
-    source_path: Rc<String>,
+    source_path: Rc<PathBuf>,
 
     current_token: Option<Token>,
     peek_token: Option<Token>,
 }
 
 impl Parser {
-    pub fn new(lexer: Lexer, source_path: Rc<String>) -> Self {
+    pub fn new(lexer: Lexer, source_path: Rc<PathBuf>) -> Self {
         let mut parser = Parser {
             lexer,
             queued_errors: vec![],
@@ -44,33 +44,61 @@ impl Parser {
         parser
     }
 
-    // ------------------------- SECTIONS -------------------------
-
-    /// Parses the next section.
-    fn parse_section(&mut self) -> FlamaResult<Section> {
-        match self
-            .current_token
-            .as_ref()
-            .expect("called parse_section(), but is at end")
-            .ttype
-        {
-            TokenType::Event => Ok(Section::Event(new_node_ptr(self.parse_event_sect()?))),
-            TokenType::Function => Ok(Section::Function(new_node_ptr(
-                self.parse_function_sect()?,
-            ))),
-            _ => {
-                self.consume_multiple(&[TokenType::Event, TokenType::Function])?;
-                unreachable!("should've errored out beforehand. update consume_multiple()")
+    pub fn parse_program(self) -> Result<Program, Vec<FlamaError>> {
+        let mut items = vec![];
+        let mut errors = vec![];
+        for result in self {
+            match result {
+                Ok(item) => items.push(new_node_ptr(item)),
+                Err(error) => errors.push(error),
             }
+        }
+
+        if errors.is_empty() {
+            Ok(items)
+        } else {
+            Err(errors)
         }
     }
 
+    // ------------------------- SECTIONS -------------------------
+
+    /// Parses the next item.
+    fn parse_item(&mut self) -> FlamaResult<Item> {
+        let err = match self
+            .current_token
+            .as_ref()
+            .expect("called parse_item(), but is at end")
+            .ttype
+        {
+            TokenType::Event => match self.parse_event_item() {
+                Ok(event) => return Ok(Item::Event(new_node_ptr(event))),
+                Err(err) => err,
+            },
+            TokenType::Function => match self.parse_function_item() {
+                Ok(function) => return Ok(Item::Function(new_node_ptr(function))),
+                Err(err) => err,
+            },
+            TokenType::Const => match self.parse_const_item() {
+                Ok(constant) => return Ok(Item::Constant(new_node_ptr(constant))),
+                Err(err) => err,
+            },
+            _ => self
+                .consume_multiple(&[TokenType::Event, TokenType::Function])
+                .expect_err("update consume_multiple()"),
+        };
+
+        self.synchronize();
+
+        Err(err)
+    }
+
     /// `"event" <name> <block>`
-    fn parse_event_sect(&mut self) -> FlamaResult<EventSect> {
+    fn parse_event_item(&mut self) -> FlamaResult<EventItem> {
         let init = self.consume(TokenType::Event)?;
         let name = self.consume_multiple(&[TokenType::Identifier, TokenType::String])?;
         let block = new_node_ptr(self.parse_block_stmt()?);
-        Ok(EventSect {
+        Ok(EventItem {
             init,
             name,
             body: block,
@@ -78,7 +106,7 @@ impl Parser {
     }
 
     /// `"fun" <name> "(" <params> ")" <block>`
-    fn parse_function_sect(&mut self) -> FlamaResult<FunctionSect> {
+    fn parse_function_item(&mut self) -> FlamaResult<FunctionItem> {
         let init = self.consume(TokenType::Function)?;
         let name = self.consume(TokenType::Identifier)?;
 
@@ -94,7 +122,7 @@ impl Parser {
         };
 
         let block = new_node_ptr(self.parse_block_stmt()?);
-        Ok(FunctionSect {
+        Ok(FunctionItem {
             init,
             signature: FunctionSignature {
                 name,
@@ -105,7 +133,42 @@ impl Parser {
         })
     }
 
+    fn parse_const_item(&mut self) -> FlamaResult<ConstItem> {
+        let init = self.consume(TokenType::Const)?;
+        let name = self.consume(TokenType::Identifier)?;
+
+        let type_annotation = if self.is_match(TokenType::Colon) {
+            self.advance();
+            Some(self.parse_type_expression()?)
+        } else {
+            None
+        };
+
+        self.consume(TokenType::Assign)?;
+        let value = self.parse_expression()?;
+        self.consume(TokenType::SemiColon)?;
+
+        Ok(ConstItem {
+            init,
+            type_annotation,
+            name,
+            value,
+        })
+    }
+
     // ------------------------- STATEMENTS -------------------------
+
+    fn parse_declaration(&mut self) -> FlamaResult<Statement> {
+        match self
+            .current_token
+            .as_ref()
+            .expect("called parse_declaration(), but is at end")
+            .ttype
+        {
+            TokenType::Let => Ok(Statement::Let(new_node_ptr(self.parse_let_stmt()?))),
+            _ => Ok(self.parse_statement()?),
+        }
+    }
 
     /// Parses the next statement.
     fn parse_statement(&mut self) -> FlamaResult<Statement> {
@@ -124,7 +187,6 @@ impl Parser {
             ))),
             TokenType::Break => Ok(Statement::Break(new_node_ptr(self.parse_break_stmt()?))),
             TokenType::Return => Ok(Statement::Return(new_node_ptr(self.parse_return_stmt()?))),
-            TokenType::Let => Ok(Statement::Let(new_node_ptr(self.parse_let_stmt()?))),
             _ => Ok(Statement::Expression(new_node_ptr(
                 self.parse_expression_stmt()?,
             ))),
@@ -136,7 +198,7 @@ impl Parser {
         let init = self.consume(TokenType::LBrace)?;
         let mut stmts = vec![];
         while !self.is_match(TokenType::RBrace) {
-            stmts.push(self.parse_statement()?);
+            stmts.push(self.parse_declaration()?);
         }
         self.advance(); // consume the }
         Ok(BlockStmt {
@@ -160,11 +222,15 @@ impl Parser {
     /// `"if" <expr> <block> ("else" <block>)?`
     fn parse_if_stmt(&mut self) -> FlamaResult<IfStmt> {
         let init = self.consume(TokenType::If)?;
+
+        self.consume(TokenType::LParen)?;
         let condition = self.parse_expression()?;
-        let consequence = new_node_ptr(self.parse_block_stmt()?);
+        self.consume(TokenType::RParen)?;
+
+        let body = self.parse_statement()?;
         let alternative = if self.is_match(TokenType::Else) {
             self.advance();
-            Some(new_node_ptr(self.parse_block_stmt()?))
+            Some(self.parse_statement()?)
         } else {
             None
         };
@@ -172,7 +238,7 @@ impl Parser {
         Ok(IfStmt {
             init,
             condition,
-            body: consequence,
+            body,
             alternative,
         })
     }
@@ -180,12 +246,16 @@ impl Parser {
     /// `"while" <expr> <block>`
     fn parse_while_stmt(&mut self) -> FlamaResult<WhileStmt> {
         let init = self.consume(TokenType::While)?;
+
+        self.consume(TokenType::LParen)?;
         let condition = self.parse_expression()?;
-        let consequence = new_node_ptr(self.parse_block_stmt()?);
+        self.consume(TokenType::LParen)?;
+
+        let body = self.parse_statement()?;
         Ok(WhileStmt {
             init,
             condition,
-            body: consequence,
+            body,
         })
     }
 
@@ -273,12 +343,14 @@ impl Parser {
                     init: operator,
                     name: n.borrow().init.clone(),
                     value: rhs,
+                    typ: None,
                 })),
                 Expression::Get(g) => Expression::Set(new_node_ptr(SetExpr {
                     init: operator,
                     object: g.borrow().object.clone(),
                     name: g.borrow().name.clone(),
                     value: rhs,
+                    typ: None,
                 })),
                 _ => {
                     return Err(
@@ -308,6 +380,7 @@ impl Parser {
                 left: expr,
                 operator: bin_op,
                 right: rhs,
+                typ: None,
             }));
         }
 
@@ -331,6 +404,7 @@ impl Parser {
                 left: expr,
                 operator: bin_op,
                 right: rhs,
+                typ: None,
             }));
         }
 
@@ -354,6 +428,7 @@ impl Parser {
                 left: expr,
                 operator: bin_op,
                 right: rhs,
+                typ: None,
             }));
         }
 
@@ -382,6 +457,7 @@ impl Parser {
                 left: expr,
                 operator: bin_op,
                 right: rhs,
+                typ: None,
             }));
         }
 
@@ -405,6 +481,7 @@ impl Parser {
                 left: expr,
                 operator: bin_op,
                 right: rhs,
+                typ: None,
             }));
         }
 
@@ -428,6 +505,7 @@ impl Parser {
                 left: expr,
                 operator: bin_op,
                 right: rhs,
+                typ: None,
             }));
         }
 
@@ -449,6 +527,7 @@ impl Parser {
                 init: operator,
                 operator: un_op,
                 right: rhs,
+                typ: None,
             }));
 
             Ok(expr)
@@ -470,6 +549,7 @@ impl Parser {
                     init,
                     object: expr,
                     name,
+                    typ: None,
                 }));
             } else if self.is_match(TokenType::LParen) {
                 let init = self.consume(TokenType::LParen)?;
@@ -482,6 +562,7 @@ impl Parser {
                     init,
                     callee: expr,
                     args,
+                    typ: None,
                 }));
             } else {
                 break;
@@ -509,6 +590,7 @@ impl Parser {
                 let expr = Expression::Literal(new_node_ptr(LiteralExpr {
                     init,
                     kind: unescaped.into(),
+                    typ: None,
                 }));
                 Ok(expr)
             }
@@ -522,13 +604,18 @@ impl Parser {
                 let expr = Expression::Literal(new_node_ptr(LiteralExpr {
                     init,
                     kind: number.into(),
+                    typ: None,
                 }));
                 Ok(expr)
             }
             TokenType::Identifier => {
                 let name = init.lexeme.clone();
 
-                let expr = Expression::Name(new_node_ptr(NameExpr { init, name }));
+                let expr = Expression::Name(new_node_ptr(NameExpr {
+                    init,
+                    name,
+                    typ: None,
+                }));
                 Ok(expr)
             }
             TokenType::True | TokenType::False => {
@@ -537,6 +624,7 @@ impl Parser {
                 let expr = Expression::Literal(new_node_ptr(LiteralExpr {
                     init,
                     kind: value.into(),
+                    typ: None,
                 }));
                 Ok(expr)
             }
@@ -565,16 +653,43 @@ impl Parser {
         }
 
         let init = self.advance().unwrap();
-        match init.ttype {
-            TokenType::TypeNumber => Ok(TypeExpression::Number(init)),
-            TokenType::TypeString => Ok(TypeExpression::String(init)),
-            TokenType::TypeBoolean => Ok(TypeExpression::Boolean(init)),
-            TokenType::Identifier => Ok(TypeExpression::Identifier(init)),
-            _ => unreachable!(),
-        }
+        Ok(TypeExpression {
+            typ: match init.ttype {
+                TokenType::TypeNumber => Type::Number,
+                TokenType::TypeString => Type::String,
+                TokenType::TypeBoolean => Type::Boolean,
+                TokenType::Identifier => Type::Identifier(init.clone()),
+                _ => unreachable!(),
+            },
+            init,
+        })
     }
 
     // ------------------------- HELPER FUNCTIONS -------------------------
+
+    fn synchronize(&mut self) {
+        while self.current_token.is_some() {
+            if self.advance().unwrap().ttype == TokenType::SemiColon {
+                return;
+            }
+
+            match self.peek_token.as_ref() {
+                Some(tok) => match tok.ttype {
+                    TokenType::Function
+                    | TokenType::Let
+                    | TokenType::If
+                    | TokenType::While
+                    | TokenType::Print
+                    | TokenType::Event
+                    | TokenType::Return => return,
+                    _ => (),
+                },
+                None => (),
+            }
+
+            self.advance();
+        }
+    }
 
     /// Returns a vector of parameters. Does not consume the opening or closing tokens.
     fn get_parameters(&mut self, ending_type: TokenType) -> FlamaResult<Vec<Parameter>> {
@@ -749,7 +864,7 @@ impl Parser {
 }
 
 impl Iterator for Parser {
-    type Item = FlamaResult<Section>;
+    type Item = FlamaResult<Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_token.is_none() {
@@ -757,7 +872,7 @@ impl Iterator for Parser {
         } else if let Some(err) = self.queued_errors.pop() {
             Some(Err(err))
         } else {
-            Some(self.parse_section())
+            Some(self.parse_item())
         }
     }
 }

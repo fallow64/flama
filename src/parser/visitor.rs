@@ -1,15 +1,15 @@
 use crate::FlamaResult;
 
 use super::ast::{
-    AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, Section, EventSect,
-    Expression, ExpressionStmt, FunctionSect, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr,
-    NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr, WhileStmt,
+    AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
+    Expression, ExpressionStmt, FunctionItem, GetExpr, IfStmt, Item, LetStmt, LiteralExpr,
+    NameExpr, NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr, WhileStmt,
 };
 
 pub trait Visitor {
     type ExpressionOutput;
     type StatementOutput;
-    type DeclarationOutput;
+    type ItemOutput;
 
     fn visit_unary_expr(&mut self, expr: NodePtr<UnaryExpr>)
         -> FlamaResult<Self::ExpressionOutput>;
@@ -49,14 +49,10 @@ pub trait Visitor {
         stmt: NodePtr<ExpressionStmt>,
     ) -> FlamaResult<Self::StatementOutput>;
 
-    fn visit_event_decl(
-        &mut self,
-        decl: NodePtr<EventSect>,
-    ) -> FlamaResult<Self::DeclarationOutput>;
-    fn visit_function_decl(
-        &mut self,
-        decl: NodePtr<FunctionSect>,
-    ) -> FlamaResult<Self::DeclarationOutput>;
+    fn visit_event_item(&mut self, decl: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput>;
+    fn visit_function_item(&mut self, decl: NodePtr<FunctionItem>)
+        -> FlamaResult<Self::ItemOutput>;
+    fn visit_const_item(&mut self, decl: NodePtr<ConstItem>) -> FlamaResult<Self::ItemOutput>;
 }
 
 pub trait ExpressionVisitable {
@@ -67,8 +63,8 @@ pub trait StatementVisitable {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput>;
 }
 
-pub trait DeclarationVisitable {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput>;
+pub trait ItemVisitable {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput>;
 }
 
 impl ExpressionVisitable for Expression {
@@ -114,17 +110,18 @@ impl StatementVisitable for NodePtr<Statement> {
     }
 }
 
-impl DeclarationVisitable for Section {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
+impl ItemVisitable for Item {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         match self {
-            Section::Event(decl) => visitor.visit_event_decl(decl.clone()),
-            Section::Function(decl) => visitor.visit_function_decl(decl.clone()),
+            Item::Event(item) => visitor.visit_event_item(item.clone()),
+            Item::Function(item) => visitor.visit_function_item(item.clone()),
+            Item::Constant(item) => visitor.visit_const_item(item.clone()),
         }
     }
 }
 
-impl DeclarationVisitable for NodePtr<Section> {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
+impl ItemVisitable for NodePtr<Item> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         self.borrow().accept(visitor)
     }
 }
@@ -233,14 +230,20 @@ impl StatementVisitable for NodePtr<ExpressionStmt> {
     }
 }
 
-impl DeclarationVisitable for NodePtr<EventSect> {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
-        visitor.visit_event_decl(self.clone())
+impl ItemVisitable for NodePtr<EventItem> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
+        visitor.visit_event_item(self.clone())
     }
 }
 
-impl DeclarationVisitable for NodePtr<FunctionSect> {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::DeclarationOutput> {
-        visitor.visit_function_decl(self.clone())
+impl ItemVisitable for NodePtr<FunctionItem> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
+        visitor.visit_function_item(self.clone())
+    }
+}
+
+impl ItemVisitable for NodePtr<ConstItem> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
+        visitor.visit_const_item(self.clone())
     }
 }

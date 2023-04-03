@@ -8,7 +8,7 @@ use crate::lexer::token::{Span, Spanned, Token};
 
 pub type NodePtr<T> = Rc<RefCell<T>>;
 
-pub type Program = Rc<Vec<NodePtr<Section>>>;
+pub type Program = Vec<NodePtr<Item>>;
 
 // creates a new `NodePtr` from a value
 // create them like this incase we need to change the implementation
@@ -35,6 +35,7 @@ pub struct UnaryExpr {
     pub init: Token,
     pub operator: UnaryOperator,
     pub right: Expression,
+    pub typ: Option<TypeExpression>,
 }
 
 #[derive(Debug, Clone)]
@@ -43,18 +44,21 @@ pub struct BinaryExpr {
     pub left: Expression,
     pub operator: BinaryOperator,
     pub right: Expression,
+    pub typ: Option<TypeExpression>,
 }
 
 #[derive(Debug, Clone)]
 pub struct LiteralExpr {
     pub init: Token,
     pub kind: LiteralKind,
+    pub typ: Option<TypeExpression>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NameExpr {
     pub init: Token,
     pub name: String,
+    pub typ: Option<TypeExpression>,
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +66,7 @@ pub struct CallExpr {
     pub init: Token,
     pub callee: Expression,
     pub args: Vec<Expression>,
+    pub typ: Option<TypeExpression>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +74,7 @@ pub struct AssignExpr {
     pub init: Token,
     pub name: Token,
     pub value: Expression,
+    pub typ: Option<TypeExpression>,
 }
 
 #[derive(Debug, Clone)]
@@ -76,6 +82,7 @@ pub struct GetExpr {
     pub init: Token,
     pub object: Expression,
     pub name: Token,
+    pub typ: Option<TypeExpression>,
 }
 
 #[derive(Debug, Clone)]
@@ -84,6 +91,7 @@ pub struct SetExpr {
     pub object: Expression,
     pub name: Token,
     pub value: Expression,
+    pub typ: Option<TypeExpression>,
 }
 
 // ------------------------- STATEMENTS -------------------------
@@ -117,15 +125,15 @@ pub struct PrintStmt {
 pub struct IfStmt {
     pub init: Token,
     pub condition: Expression,
-    pub body: NodePtr<BlockStmt>,
-    pub alternative: Option<NodePtr<BlockStmt>>,
+    pub body: Statement,
+    pub alternative: Option<Statement>,
 }
 
 #[derive(Debug, Clone)]
 pub struct WhileStmt {
     pub init: Token,
     pub condition: Expression,
-    pub body: NodePtr<BlockStmt>,
+    pub body: Statement,
 }
 
 #[derive(Debug, Clone)]
@@ -160,44 +168,64 @@ pub struct ExpressionStmt {
 // ------------------------- SECTIONS -------------------------
 
 #[derive(Debug, Clone)]
-pub enum Section {
-    Event(NodePtr<EventSect>),
-    Function(NodePtr<FunctionSect>),
+pub enum Item {
+    Event(NodePtr<EventItem>),
+    Function(NodePtr<FunctionItem>),
+    Constant(NodePtr<ConstItem>),
 }
 
 #[derive(Debug, Clone)]
-pub struct EventSect {
+pub struct EventItem {
     pub init: Token,
     pub name: Token,
     pub body: NodePtr<BlockStmt>,
 }
 
 #[derive(Debug, Clone)]
-pub struct FunctionSect {
+pub struct FunctionItem {
     pub init: Token,
     pub signature: FunctionSignature,
     pub body: NodePtr<BlockStmt>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ConstItem {
+    pub init: Token,
+    pub name: Token,
+    pub type_annotation: Option<TypeExpression>,
+    pub value: Expression,
+}
+
 // ------------------------- TYPED EXPRESSIONS -------------------------
 
 #[derive(Debug, Clone)]
-pub enum TypeExpression {
-    // TODO: node pointers?
-    Number(Token),
-    String(Token),
-    Boolean(Token),
+pub struct TypeExpression {
+    pub init: Token,
+    pub typ: Type,
+    // Number(Token),
+    // String(Token),
+    // Boolean(Token),
+    // Identifier(Token),
+}
+
+#[derive(Debug, Clone)]
+pub enum Type {
+    Number,
+    String,
+    Boolean,
     Identifier(Token),
+}
+
+impl Type {
+    #[allow(dead_code)]
+    pub fn is_primitive(&self) -> bool {
+        matches!(self, Type::Number | Type::String | Type::Boolean)
+    }
 }
 
 impl Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeExpression::Number(token) => write!(f, "{}", token.lexeme),
-            TypeExpression::String(token) => write!(f, "{}", token.lexeme),
-            TypeExpression::Boolean(token) => write!(f, "{}", token.lexeme),
-            TypeExpression::Identifier(token) => write!(f, "{}", token.lexeme),
-        }
+        write!(f, "{}", self.init.lexeme)
     }
 }
 
@@ -234,23 +262,19 @@ impl Spanned for Statement {
     }
 }
 
-impl Spanned for Section {
+impl Spanned for Item {
     fn span(&self) -> Span {
         match self {
-            Section::Event(sect) => sect.borrow().init.span,
-            Section::Function(sect) => sect.borrow().init.span,
+            Item::Event(sect) => sect.borrow().init.span,
+            Item::Function(sect) => sect.borrow().init.span,
+            Item::Constant(sect) => sect.borrow().init.span,
         }
     }
 }
 
 impl Spanned for TypeExpression {
     fn span(&self) -> Span {
-        match self {
-            TypeExpression::Number(s) => s.span,
-            TypeExpression::String(s) => s.span,
-            TypeExpression::Boolean(s) => s.span,
-            TypeExpression::Identifier(s) => s.span,
-        }
+        self.init.span
     }
 }
 

@@ -14,17 +14,13 @@ pub fn report_error(error: FlamaError) {
     let (start, _) = get_line_column(&source, span);
 
     // <error type>: <message>
-    println!(
-        "{}: {}",
-        error_type.to_string().red().bold(),
-        message,
-    );
+    println!("{}: {}", error_type.to_string().red().bold(), message,);
 
     //    -> at <file_name>:<line>:<column>
     println!(
         "{} at {}:{}:{}",
         "    ->".red(),
-        source_path,
+        source_path.to_str().unwrap(),
         start.0,
         start.1
     );

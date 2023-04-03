@@ -63,6 +63,7 @@ pub enum TokenType {
     True,
     False,
     Print,
+    Const,
     // types
     TypeNumber,
     TypeString,
@@ -78,7 +79,7 @@ impl TokenType {
     pub fn get_keyword(name: String) -> TokenType {
         match name.as_str() {
             "event" => TokenType::Event,
-            "fn" => TokenType::Function,
+            "fun" => TokenType::Function,
             "let" => TokenType::Let,
             "if" => TokenType::If,
             "else" => TokenType::Else,
@@ -90,6 +91,7 @@ impl TokenType {
             "true" => TokenType::True,
             "false" => TokenType::False,
             "print" => TokenType::Print,
+            "const" => TokenType::Const,
             "num" => TokenType::TypeNumber,
             "string" => TokenType::TypeString,
             "bool" => TokenType::TypeBoolean,
@@ -97,6 +99,7 @@ impl TokenType {
         }
     }
 
+    /// Returns the matching binary operator for this token type, if any.
     pub fn get_operator_binary(&self) -> Option<BinaryOperator> {
         match self {
             TokenType::Plus => Some(BinaryOperator::Add),
@@ -117,6 +120,7 @@ impl TokenType {
         }
     }
 
+    /// Returns the matching unary operator for this token type, if any.
     pub fn get_operator_unary(&self) -> Option<UnaryOperator> {
         match self {
             TokenType::Plus => Some(UnaryOperator::Identity),
@@ -175,6 +179,7 @@ impl Display for TokenType {
             TokenType::True => f.write_str("TRUE")?,
             TokenType::False => f.write_str("FALSE")?,
             TokenType::Print => f.write_str("PRINT")?,
+            TokenType::Const => f.write_str("CONST")?,
             TokenType::TypeNumber => f.write_str("TYPENUMBER")?,
             TokenType::TypeString => f.write_str("TYPESTRING")?,
             TokenType::TypeBoolean => f.write_str("TYPEBOOLEAN")?,
@@ -237,18 +242,16 @@ impl Display for TokenType {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+/// A span of text in the source code.
+/// Note: this only contains the indices, not the line/column number.
+/// Also, for representing EOF, use `Span { start: 0, end: 0 }`.
+#[derive(Debug, PartialEq, Default, Clone, Copy)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
 }
 
-impl Default for Span {
-    fn default() -> Self {
-        Span { start: 0, end: 0 }
-    }
-}
-
+/// A trait for structs that have a span.
 pub trait Spanned {
     fn span(&self) -> Span;
 }
