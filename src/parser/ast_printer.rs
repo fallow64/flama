@@ -64,7 +64,7 @@ impl Visitor for Printer {
     }
 
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        Ok(expr.borrow().name.clone())
+        Ok(expr.borrow().name.name.clone())
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {

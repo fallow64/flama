@@ -8,6 +8,7 @@ pub struct Environment<K, V> {
     values: HashMap<K, V>,
 }
 
+#[allow(dead_code)]
 impl<K, V> Environment<K, V>
 where
     K: Hash + Eq,

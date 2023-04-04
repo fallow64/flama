@@ -21,6 +21,7 @@ use crate::{
 pub struct TypeChecker {
     environment: Environment<String, Type>,
     source_path: Rc<PathBuf>,
+    return_type: Option<Type>,
 }
 
 impl TypeChecker {
@@ -28,6 +29,7 @@ impl TypeChecker {
         Self {
             environment: Environment::new(),
             source_path,
+            return_type: None,
         }
     }
 
@@ -71,8 +73,13 @@ impl Visitor for TypeChecker {
         match (&expr.borrow().operator, typ1, typ2) {
             (BinaryOperator::Add, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Add, Type::String, Type::String) => Ok(Type::String),
+            (BinaryOperator::Add, Type::String, Type::Number) => Ok(Type::String),
+            (BinaryOperator::Add, Type::Number, Type::String) => Ok(Type::String),
+            (BinaryOperator::Add, Type::Vector, Type::Vector) => Ok(Type::Vector),
             (BinaryOperator::Subtract, Type::Number, Type::Number) => Ok(Type::Number),
+            (BinaryOperator::Subtract, Type::Vector, Type::Vector) => Ok(Type::Vector),
             (BinaryOperator::Multiply, Type::Number, Type::Number) => Ok(Type::Number),
+            // (BinaryOperator::Multiply, Type::Vector, Type::Vector) => Ok(Type::Vector), // todo: cross products?
             (BinaryOperator::Divide, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Modulo, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Equals, a, b) => {
@@ -119,8 +126,13 @@ impl Visitor for TypeChecker {
 
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let name = expr.borrow().name.clone();
-        let value_type = self.environment.get(&name).unwrap();
-        Ok(value_type.clone())
+        let value_type = self.environment.get(&name.name);
+
+        if value_type.is_none() {
+            return Err(self.undefined_variable_error(name.name, name.span));
+        } else {
+            Ok(value_type.unwrap().clone())
+        }
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -140,12 +152,10 @@ impl Visitor for TypeChecker {
         let var_type = self.environment.get(&expr.borrow().name.lexeme);
 
         if var_type.is_none() {
-            return Err(FlamaError {
-                error_type: ErrorType::Name,
-                message: format!("Undefined variable '{}'", expr.borrow().name.lexeme),
-                span: expr.borrow().name.span,
-                source_path: self.source_path.clone(),
-            });
+            return Err(self.undefined_variable_error(
+                expr.borrow().name.lexeme.clone(),
+                expr.borrow().name.span,
+            ));
         }
 
         let var_type = var_type.unwrap();
@@ -239,7 +249,15 @@ impl Visitor for TypeChecker {
         stmt: NodePtr<ReturnStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         if let Some(value) = &stmt.borrow().value {
-            value.accept(self)?;
+            let return_type = Some(value.accept(self)?);
+
+            if return_type != self.return_type {
+                return Err(self.expected_error_option(
+                    self.return_type.clone().unwrap(),
+                    return_type,
+                    value.span(),
+                ));
+            }
         }
 
         Ok(())
@@ -257,11 +275,11 @@ impl Visitor for TypeChecker {
         let typ = match (type_annotation, value_type) {
             (Some(type_annotation), Some(value_type)) => {
                 if type_annotation != value_type {
-                    todo!()
-                    // return Err(FlamaError::new(
-                    //     "Type annotation does not match value type",
-                    //     stmt.borrow().name.span,
-                    // ));
+                    return Err(self.expected_error(
+                        type_annotation,
+                        value_type,
+                        stmt.borrow().value.as_ref().unwrap().span(),
+                    ));
                 } else {
                     type_annotation
                 }
@@ -296,7 +314,9 @@ impl Visitor for TypeChecker {
         &mut self,
         decl: NodePtr<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
+        self.return_type = decl.borrow().signature.return_type.clone().map(|t| t.typ);
         decl.borrow().body.accept(self)?;
+        self.return_type = None;
 
         Ok(())
     }
@@ -337,5 +357,25 @@ impl TypeChecker {
             format!("expected type {}, but got type {}", expected, actual),
             span,
         )
+    }
+
+    fn expected_error_option(
+        &self,
+        expected: Type,
+        actual: Option<Type>,
+        span: Span,
+    ) -> FlamaError {
+        self.error(
+            format!(
+                "expected type {}, but got type {}",
+                expected,
+                actual.unwrap_or(Type::Void)
+            ),
+            span,
+        )
+    }
+
+    fn undefined_variable_error(&self, name: String, span: Span) -> FlamaError {
+        self.error(format!("undefined variable '{}'", name), span)
     }
 }

@@ -58,7 +58,7 @@ pub struct LiteralExpr {
 #[derive(Debug, Clone)]
 pub struct NameExpr {
     pub init: Token,
-    pub name: String,
+    pub name: Identifier,
     pub typ: Option<Type>,
 }
 
@@ -210,13 +210,15 @@ pub struct TypeExpression {
     // Identifier(Token),
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub enum Type {
     Number,
     String,
     Boolean,
     Identifier(Identifier),
     Vector,
+    #[default]
+    Void,
 }
 
 impl From<LiteralKind> for Type {
@@ -245,6 +247,7 @@ impl Display for Type {
             Type::Boolean => write!(f, "boolean"),
             Type::Identifier(id) => write!(f, "{}", id),
             Type::Vector => write!(f, "vector"),
+            Type::Void => write!(f, "void"),
         }
     }
 }
@@ -402,7 +405,7 @@ impl Display for LiteralKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             LiteralKind::Number(n) => write!(f, "{}", n),
-            LiteralKind::String(s) => write!(f, "{}", s),
+            LiteralKind::String(s) => write!(f, "\"{}\"", s),
             LiteralKind::Boolean(b) => write!(f, "{}", b),
             LiteralKind::Vector(x, y, z) => write!(f, "<{}, {}, {}>", x, y, z),
         }

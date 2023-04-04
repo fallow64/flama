@@ -649,7 +649,7 @@ impl Parser {
                 Ok(expr)
             }
             TokenType::Identifier => {
-                let name = init.lexeme.clone();
+                let name = init.clone().into();
 
                 let expr = Expression::Name(new_node_ptr(NameExpr {
                     init,
