@@ -128,7 +128,7 @@ impl Parser {
         };
 
         self.in_function = true;
-        let block = new_node_ptr(self.parse_block_stmt()?);
+        let statements = self.get_stmts();
         self.in_function = false;
 
         Ok(FunctionItem {
@@ -138,7 +138,7 @@ impl Parser {
                 params,
                 return_type,
             },
-            body: block,
+            statements,
         })
     }
 
@@ -762,6 +762,14 @@ impl Parser {
 
             self.advance();
         }
+    }
+
+    fn get_stmts(&mut self) -> Vec<Statement> {
+        let mut stmts = vec![];
+        while !self.is_match(TokenType::RBrace) {
+            stmts.push(self.parse_statement().unwrap());
+        }
+        stmts
     }
 
     /// Returns a vector of parameters. Does not consume the opening or closing tokens.

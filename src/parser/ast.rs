@@ -187,7 +187,7 @@ pub struct EventItem {
 pub struct FunctionItem {
     pub init: Token,
     pub signature: FunctionSignature,
-    pub body: NodePtr<BlockStmt>,
+    pub statements: Vec<Statement>,
 }
 
 #[derive(Debug, Clone)]

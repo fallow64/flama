@@ -318,8 +318,13 @@ impl Visitor for TypeChecker {
         decl: NodePtr<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
         self.return_type = decl.borrow().signature.return_type.clone().map(|t| t.typ);
-        decl.borrow().body.accept(self)?;
+
+        self.environment.push();
+        for stmt in decl.borrow().statements {
+            stmt.accept(self)?;
+        }
         self.return_type = None;
+        self.environment.pop();
 
         Ok(())
     }

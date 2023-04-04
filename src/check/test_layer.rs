@@ -169,7 +169,10 @@ impl Visitor for TestLayer {
         &mut self,
         item: NodePtr<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
-        item.borrow().body.accept(self)?;
+        for stmt in item.borrow().statements {
+            stmt.accept(self)?;
+        }
+
         Ok(())
     }
 

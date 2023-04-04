@@ -12,7 +12,10 @@ use crate::{
     FlamaResult,
 };
 
-use super::{ast::ConstItem, visitor::ItemVisitable};
+use super::{
+    ast::{ConstItem, Statement},
+    visitor::ItemVisitable,
+};
 
 pub fn print(program: Rc<Program>) -> FlamaResult<()> {
     let mut printer = Printer { indent: 0 };
