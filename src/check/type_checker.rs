@@ -6,9 +6,9 @@ use crate::{
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ConstItem,
-            ContinueStmt, EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, LetStmt,
-            LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr, Type,
-            UnaryExpr, UnaryOperator, WhileStmt,
+            ContinueStmt, EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr,
+            IfStmt, LetStmt, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt,
+            SetExpr, Type, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -136,12 +136,40 @@ impl Visitor for TypeChecker {
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        expr.borrow().callee.accept(self)?;
-        for argument in &expr.borrow().args {
-            argument.accept(self)?;
-        }
+        let callee_type = expr.borrow().callee.accept(self)?;
+        if let Type::Function(signature) = callee_type {
+            let mut args = Vec::new();
 
-        todo!()
+            for arg in expr.borrow().args.iter() {
+                args.push(arg.accept(self)?);
+            }
+
+            if args.len() != signature.params.len() {
+                return Err(self.expected_error(
+                    Type::Function(Box::new(FunctionSignature::default())),
+                    Type::Function(signature),
+                    expr.borrow().init.span,
+                ));
+            }
+
+            for (i, arg) in args.iter().enumerate() {
+                if arg != &signature.params[i].type_annotation.typ {
+                    return Err(self.expected_error(
+                        Type::Function(Box::new(FunctionSignature::default())),
+                        Type::Function(signature),
+                        expr.borrow().init.span,
+                    ));
+                }
+            }
+
+            Ok(signature.return_type.map_or(Type::Void, |rt| rt.typ))
+        } else {
+            Err(self.expected_error(
+                Type::Function(Box::new(FunctionSignature::default())),
+                callee_type,
+                expr.borrow().init.span,
+            ))
+        }
     }
 
     fn visit_assign_expr(
@@ -192,7 +220,7 @@ impl Visitor for TypeChecker {
         // any types allowed in print stmt
         for value in &stmt.borrow().values {
             let typ = value.accept(self)?;
-            println!("{:?}", typ);
+            println!("{}", typ);
         }
 
         Ok(())
@@ -318,9 +346,14 @@ impl Visitor for TypeChecker {
         decl: NodePtr<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
         self.return_type = decl.borrow().signature.return_type.clone().map(|t| t.typ);
+        let signature = decl.borrow().signature.clone();
+        self.environment.define(
+            decl.borrow().signature.name.name.clone(),
+            Type::Function(Box::new(signature)),
+        );
 
         self.environment.push();
-        for stmt in decl.borrow().statements {
+        for stmt in &decl.borrow().stmts {
             stmt.accept(self)?;
         }
         self.return_type = None;
@@ -376,8 +409,8 @@ impl TypeChecker {
         self.error(
             format!(
                 "expected type {}, but got type {}",
-                expected.unwrap_or(Type::Void),
-                actual.unwrap_or(Type::Void)
+                expected.unwrap_or(Type::default()),
+                actual.unwrap_or(Type::default())
             ),
             span,
         )

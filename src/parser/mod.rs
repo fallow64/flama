@@ -126,19 +126,24 @@ impl Parser {
         } else {
             None
         };
-
         self.in_function = true;
-        let statements = self.get_stmts();
+
+        let mut stmts = vec![];
+        self.consume(TokenType::LBrace)?;
+        while !self.is_match(TokenType::RBrace) {
+            stmts.push(self.parse_declaration()?);
+        }
+        self.consume(TokenType::RBrace)?;
         self.in_function = false;
 
         Ok(FunctionItem {
             init,
+            stmts,
             signature: FunctionSignature {
                 name,
                 params,
                 return_type,
             },
-            statements,
         })
     }
 
@@ -208,6 +213,7 @@ impl Parser {
     fn parse_block_stmt(&mut self) -> FlamaResult<BlockStmt> {
         let init = self.consume(TokenType::LBrace)?;
         let mut stmts = vec![];
+
         while !self.is_match(TokenType::RBrace) {
             stmts.push(self.parse_declaration()?);
         }
@@ -762,14 +768,6 @@ impl Parser {
 
             self.advance();
         }
-    }
-
-    fn get_stmts(&mut self) -> Vec<Statement> {
-        let mut stmts = vec![];
-        while !self.is_match(TokenType::RBrace) {
-            stmts.push(self.parse_statement().unwrap());
-        }
-        stmts
     }
 
     /// Returns a vector of parameters. Does not consume the opening or closing tokens.

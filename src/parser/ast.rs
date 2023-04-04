@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},
+    path::PathBuf,
     rc::Rc,
 };
 
@@ -11,8 +12,14 @@ pub type NodePtr<T> = Rc<RefCell<T>>;
 // TODO: Program should be a struct with the different types, path, etc...
 pub type Program = Vec<NodePtr<Item>>;
 
+pub struct Program2 {
+    pub signatures: Vec<FunctionSignature>,
+    pub items: Vec<Item>,
+    pub path: Rc<PathBuf>,
+}
+
 // creates a new `NodePtr` from a value
-// create them like this incase we need to change the implementation
+// create them like this incasez we need to change the implementation
 pub fn new_node_ptr<T>(val: T) -> NodePtr<T> {
     Rc::new(RefCell::new(val))
 }
@@ -186,8 +193,8 @@ pub struct EventItem {
 #[derive(Debug, Clone)]
 pub struct FunctionItem {
     pub init: Token,
+    pub stmts: Vec<Statement>,
     pub signature: FunctionSignature,
-    pub statements: Vec<Statement>,
 }
 
 #[derive(Debug, Clone)]
@@ -215,8 +222,9 @@ pub enum Type {
     Number,
     String,
     Boolean,
-    Identifier(Identifier),
     Vector,
+    Identifier(Identifier),
+    Function(Box<FunctionSignature>),
     #[default]
     Void,
 }
@@ -245,8 +253,22 @@ impl Display for Type {
             Type::Number => write!(f, "number"),
             Type::String => write!(f, "string"),
             Type::Boolean => write!(f, "boolean"),
-            Type::Identifier(id) => write!(f, "{}", id),
             Type::Vector => write!(f, "vector"),
+            Type::Identifier(id) => write!(f, "{}", id),
+            Type::Function(sig) => {
+                write!(
+                    f,
+                    "<fn({}) -> {}>",
+                    sig.params
+                        .iter()
+                        .map(|p| p.type_annotation.typ.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", "),
+                    sig.return_type
+                        .as_ref()
+                        .map_or(&Type::default(), |te| &te.typ)
+                )
+            }
             Type::Void => write!(f, "void"),
         }
     }
@@ -330,7 +352,7 @@ pub struct Parameter {
     pub type_annotation: TypeExpression,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct FunctionSignature {
     pub name: Identifier,
     pub params: Vec<Parameter>,
@@ -467,7 +489,7 @@ impl Display for VariableType {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct Identifier {
     pub name: String,
     pub span: Span,

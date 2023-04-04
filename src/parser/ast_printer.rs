@@ -229,7 +229,7 @@ impl Visitor for Printer {
         Ok(format!(
             "fn {} {}",
             item.borrow().signature.name.name,
-            item.borrow().body.accept(self)?
+            self.visit_multiple(&item.borrow().stmts)?
         ))
     }
 
@@ -245,5 +245,23 @@ impl Visitor for Printer {
             type_annotation,
             item.borrow().value.accept(self)?
         ))
+    }
+}
+
+impl Printer {
+    fn visit_multiple<'a>(&mut self, stmts: &'a Vec<Statement>) -> FlamaResult<String> {
+        let mut output = String::from("{\n");
+        self.indent += 4;
+
+        for stmt in stmts {
+            output.push_str(" ".repeat(self.indent).as_str());
+            output.push_str(&stmt.accept(self)?);
+            output.push_str("\n");
+        }
+        output.push_str("}");
+
+        self.indent -= 4;
+
+        Ok(output)
     }
 }
