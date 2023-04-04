@@ -200,7 +200,7 @@ pub struct ConstItem {
 
 // ------------------------- TYPED EXPRESSIONS -------------------------
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeExpression {
     pub init: Token,
     pub typ: Type,
@@ -324,13 +324,13 @@ impl Spanned for TypeExpression {
 
 // ------------------------- UTILITY -------------------------
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Parameter {
     pub name: Token,
     pub type_annotation: TypeExpression,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct FunctionSignature {
     pub name: Identifier,
     pub params: Vec<Parameter>,

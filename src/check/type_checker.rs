@@ -191,7 +191,8 @@ impl Visitor for TypeChecker {
     fn visit_print_stmt(&mut self, stmt: NodePtr<PrintStmt>) -> FlamaResult<Self::StatementOutput> {
         // any types allowed in print stmt
         for value in &stmt.borrow().values {
-            value.accept(self)?;
+            let typ = value.accept(self)?;
+            println!("{:?}", typ);
         }
 
         Ok(())
@@ -248,16 +249,18 @@ impl Visitor for TypeChecker {
         &mut self,
         stmt: NodePtr<ReturnStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
-        if let Some(value) = &stmt.borrow().value {
-            let return_type = Some(value.accept(self)?);
+        let value_type = if let Some(value) = &stmt.borrow().value {
+            Some(value.accept(self)?)
+        } else {
+            None
+        };
 
-            if return_type != self.return_type {
-                return Err(self.expected_error_option(
-                    self.return_type.clone().unwrap(),
-                    return_type,
-                    value.span(),
-                ));
-            }
+        if value_type != self.return_type {
+            return Err(self.expected_error_option(
+                self.return_type.clone(),
+                value_type,
+                stmt.borrow().value.as_ref().unwrap().span(),
+            ));
         }
 
         Ok(())
@@ -361,14 +364,14 @@ impl TypeChecker {
 
     fn expected_error_option(
         &self,
-        expected: Type,
+        expected: Option<Type>,
         actual: Option<Type>,
         span: Span,
     ) -> FlamaError {
         self.error(
             format!(
                 "expected type {}, but got type {}",
-                expected,
+                expected.unwrap_or(Type::Void),
                 actual.unwrap_or(Type::Void)
             ),
             span,
