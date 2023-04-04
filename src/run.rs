@@ -13,7 +13,7 @@ pub fn run(source: String, path_pointer: Rc<PathBuf>) {
     let parser = Parser::new(lexer, path_pointer.clone());
 
     let program = Rc::new(unwrap_multiple_or_exit(parser.parse_program()));
-    unwrap_or_exit(check::check(program.clone()));
+    unwrap_or_exit(check::check(program.clone(), path_pointer.clone()));
     unwrap_or_exit(ast_printer::print(program.clone()));
 }
 

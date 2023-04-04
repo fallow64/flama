@@ -13,7 +13,7 @@ use self::ast::{
     new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
     Expression, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, IfStmt, Item, LetStmt,
     LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr, Statement, Type,
-    TypeExpression, UnaryExpr, WhileStmt,
+    TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
@@ -24,6 +24,8 @@ pub struct Parser {
     lexer: Lexer,
     queued_errors: Vec<FlamaError>,
     source_path: Rc<PathBuf>,
+    loop_depth: usize,
+    in_function: bool,
 
     current_token: Option<Token>,
     peek_token: Option<Token>,
@@ -35,6 +37,8 @@ impl Parser {
             lexer,
             queued_errors: vec![],
             source_path,
+            loop_depth: 0,
+            in_function: false,
             current_token: None,
             peek_token: None,
         };
@@ -96,7 +100,9 @@ impl Parser {
     /// `"event" <name> <block>`
     fn parse_event_item(&mut self) -> FlamaResult<EventItem> {
         let init = self.consume(TokenType::Event)?;
-        let name = self.consume_multiple(&[TokenType::Identifier, TokenType::String])?;
+        let name = self
+            .consume_multiple(&[TokenType::Identifier, TokenType::String])?
+            .into();
         let block = new_node_ptr(self.parse_block_stmt()?);
         Ok(EventItem {
             init,
@@ -108,7 +114,7 @@ impl Parser {
     /// `"fun" <name> "(" <params> ")" <block>`
     fn parse_function_item(&mut self) -> FlamaResult<FunctionItem> {
         let init = self.consume(TokenType::Function)?;
-        let name = self.consume(TokenType::Identifier)?;
+        let name = self.consume(TokenType::Identifier)?.into();
 
         self.consume(TokenType::LParen)?; // consume the (
         let params = self.get_parameters(TokenType::RParen)?;
@@ -121,7 +127,10 @@ impl Parser {
             None
         };
 
+        self.in_function = true;
         let block = new_node_ptr(self.parse_block_stmt()?);
+        self.in_function = false;
+
         Ok(FunctionItem {
             init,
             signature: FunctionSignature {
@@ -135,7 +144,7 @@ impl Parser {
 
     fn parse_const_item(&mut self) -> FlamaResult<ConstItem> {
         let init = self.consume(TokenType::Const)?;
-        let name = self.consume(TokenType::Identifier)?;
+        let name = self.consume(TokenType::Identifier)?.into();
 
         let type_annotation = if self.is_match(TokenType::Colon) {
             self.advance();
@@ -165,7 +174,9 @@ impl Parser {
             .expect("called parse_declaration(), but is at end")
             .ttype
         {
-            TokenType::Let => Ok(Statement::Let(new_node_ptr(self.parse_let_stmt()?))),
+            TokenType::Let | TokenType::Local | TokenType::Save | TokenType::Game => {
+                Ok(Statement::Let(new_node_ptr(self.parse_let_stmt()?)))
+            }
             _ => Ok(self.parse_statement()?),
         }
     }
@@ -247,11 +258,16 @@ impl Parser {
     fn parse_while_stmt(&mut self) -> FlamaResult<WhileStmt> {
         let init = self.consume(TokenType::While)?;
 
+        self.loop_depth += 1;
+
         self.consume(TokenType::LParen)?;
         let condition = self.parse_expression()?;
-        self.consume(TokenType::LParen)?;
+        self.consume(TokenType::RParen)?;
 
         let body = self.parse_statement()?;
+
+        self.loop_depth -= 1;
+
         Ok(WhileStmt {
             init,
             condition,
@@ -263,6 +279,13 @@ impl Parser {
     fn parse_continue_stmt(&mut self) -> FlamaResult<ContinueStmt> {
         let init = self.consume(TokenType::Continue)?;
         self.consume(TokenType::SemiColon)?;
+
+        if self.loop_depth == 0 {
+            return Err(
+                self.make_error(init.span, "continue statement outside of loop".to_string())
+            );
+        }
+
         Ok(ContinueStmt { init })
     }
 
@@ -270,6 +293,11 @@ impl Parser {
     fn parse_break_stmt(&mut self) -> FlamaResult<BreakStmt> {
         let init = self.consume(TokenType::Break)?;
         self.consume(TokenType::SemiColon)?;
+
+        if self.loop_depth == 0 {
+            return Err(self.make_error(init.span, "break statement outside of loop".to_string()));
+        }
+
         Ok(BreakStmt { init })
     }
 
@@ -284,14 +312,29 @@ impl Parser {
         };
         self.consume(TokenType::SemiColon)?;
 
+        if !self.in_function {
+            return Err(self.make_error(
+                init.span,
+                "return statement outside of function".to_string(),
+            ));
+        }
+
         Ok(ReturnStmt { init, value })
     }
 
     /// `"let" <name> (":" <type>)? ("=" <expr>)? ";"`
     fn parse_let_stmt(&mut self) -> FlamaResult<LetStmt> {
-        let init = self.consume(TokenType::Let)?;
+        let init = self.consume_multiple(&[
+            TokenType::Let,
+            TokenType::Save,
+            TokenType::Local,
+            TokenType::Save,
+            TokenType::Game,
+        ])?;
 
-        let name = self.consume(TokenType::Identifier)?;
+        let kind = VariableType::from_ttype(init.ttype).unwrap();
+
+        let name = self.consume(TokenType::Identifier)?.into();
 
         let type_annotation = if self.is_match(TokenType::Colon) {
             self.advance();
@@ -314,6 +357,7 @@ impl Parser {
             name,
             type_annotation,
             value,
+            kind,
         })
     }
 
@@ -439,9 +483,9 @@ impl Parser {
     fn parse_relational(&mut self) -> FlamaResult<Expression> {
         let mut expr = self.parse_term()?;
         while self.is_matches(&[
-            TokenType::Greater,
+            TokenType::RArrow,
             TokenType::GreaterEq,
-            TokenType::Less,
+            TokenType::LArrow,
             TokenType::LessEq,
         ]) {
             let operator = self.advance().unwrap();
@@ -595,11 +639,7 @@ impl Parser {
                 Ok(expr)
             }
             TokenType::Number => {
-                let number = init
-                    .lexeme
-                    .replace("_", "")
-                    .parse::<f64>()
-                    .expect("invalid number parsed?");
+                let number = init.lexeme.parse::<f64>().expect("invalid number parsed?");
 
                 let expr = Expression::Literal(new_node_ptr(LiteralExpr {
                     init,
@@ -628,6 +668,36 @@ impl Parser {
                 }));
                 Ok(expr)
             }
+            TokenType::LArrow => {
+                let num1 = self
+                    .consume(TokenType::Number)?
+                    .lexeme
+                    .parse::<f64>()
+                    .unwrap();
+                self.consume(TokenType::Comma)?;
+
+                let num2 = self
+                    .consume(TokenType::Number)?
+                    .lexeme
+                    .parse::<f64>()
+                    .unwrap();
+                self.consume(TokenType::Comma)?;
+
+                let num3 = self
+                    .consume(TokenType::Number)?
+                    .lexeme
+                    .parse::<f64>()
+                    .unwrap();
+                self.consume(TokenType::RArrow)?;
+
+                let expr = Expression::Literal(new_node_ptr(LiteralExpr {
+                    init,
+                    kind: (num1, num2, num3).into(),
+                    typ: None,
+                }));
+
+                Ok(expr)
+            }
             _ => Err(self.make_error(init.span, "expected expression".to_string())),
         }
     }
@@ -639,6 +709,7 @@ impl Parser {
             TokenType::TypeNumber,
             TokenType::TypeString,
             TokenType::TypeBoolean,
+            TokenType::TypeVector,
             TokenType::Identifier,
         ]) {
             return Err(self.make_error_expected(
@@ -646,6 +717,7 @@ impl Parser {
                     TokenType::TypeNumber,
                     TokenType::TypeString,
                     TokenType::TypeBoolean,
+                    TokenType::TypeVector,
                     TokenType::Identifier,
                 ],
                 self.current_token.as_ref().map(|tok| tok.ttype),
@@ -658,7 +730,8 @@ impl Parser {
                 TokenType::TypeNumber => Type::Number,
                 TokenType::TypeString => Type::String,
                 TokenType::TypeBoolean => Type::Boolean,
-                TokenType::Identifier => Type::Identifier(init.clone()),
+                TokenType::TypeVector => Type::Vector,
+                TokenType::Identifier => Type::Identifier(init.clone().into()),
                 _ => unreachable!(),
             },
             init,

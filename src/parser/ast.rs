@@ -4,10 +4,11 @@ use std::{
     rc::Rc,
 };
 
-use crate::lexer::token::{Span, Spanned, Token};
+use crate::lexer::token::{Span, Spanned, Token, TokenType};
 
 pub type NodePtr<T> = Rc<RefCell<T>>;
 
+// TODO: Program should be a struct with the different types, path, etc...
 pub type Program = Vec<NodePtr<Item>>;
 
 // creates a new `NodePtr` from a value
@@ -35,7 +36,7 @@ pub struct UnaryExpr {
     pub init: Token,
     pub operator: UnaryOperator,
     pub right: Expression,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -44,21 +45,21 @@ pub struct BinaryExpr {
     pub left: Expression,
     pub operator: BinaryOperator,
     pub right: Expression,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
 pub struct LiteralExpr {
     pub init: Token,
     pub kind: LiteralKind,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NameExpr {
     pub init: Token,
     pub name: String,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +67,7 @@ pub struct CallExpr {
     pub init: Token,
     pub callee: Expression,
     pub args: Vec<Expression>,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -74,7 +75,7 @@ pub struct AssignExpr {
     pub init: Token,
     pub name: Token,
     pub value: Expression,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -82,7 +83,7 @@ pub struct GetExpr {
     pub init: Token,
     pub object: Expression,
     pub name: Token,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +92,7 @@ pub struct SetExpr {
     pub object: Expression,
     pub name: Token,
     pub value: Expression,
-    pub typ: Option<TypeExpression>,
+    pub typ: Option<Type>,
 }
 
 // ------------------------- STATEMENTS -------------------------
@@ -155,9 +156,10 @@ pub struct ReturnStmt {
 #[derive(Debug, Clone)]
 pub struct LetStmt {
     pub init: Token,
-    pub name: Token,
+    pub name: Identifier,
     pub type_annotation: Option<TypeExpression>,
     pub value: Option<Expression>,
+    pub kind: VariableType,
 }
 
 #[derive(Debug, Clone)]
@@ -177,7 +179,7 @@ pub enum Item {
 #[derive(Debug, Clone)]
 pub struct EventItem {
     pub init: Token,
-    pub name: Token,
+    pub name: Identifier,
     pub body: NodePtr<BlockStmt>,
 }
 
@@ -191,7 +193,7 @@ pub struct FunctionItem {
 #[derive(Debug, Clone)]
 pub struct ConstItem {
     pub init: Token,
-    pub name: Token,
+    pub name: Identifier,
     pub type_annotation: Option<TypeExpression>,
     pub value: Expression,
 }
@@ -208,12 +210,24 @@ pub struct TypeExpression {
     // Identifier(Token),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Type {
     Number,
     String,
     Boolean,
-    Identifier(Token),
+    Identifier(Identifier),
+    Vector,
+}
+
+impl From<LiteralKind> for Type {
+    fn from(kind: LiteralKind) -> Self {
+        match kind {
+            LiteralKind::Number(_) => Type::Number,
+            LiteralKind::String(_) => Type::String,
+            LiteralKind::Boolean(_) => Type::Boolean,
+            LiteralKind::Vector(_, _, _) => Type::Vector,
+        }
+    }
 }
 
 impl Type {
@@ -223,13 +237,40 @@ impl Type {
     }
 }
 
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Number => write!(f, "number"),
+            Type::String => write!(f, "string"),
+            Type::Boolean => write!(f, "boolean"),
+            Type::Identifier(id) => write!(f, "{}", id),
+            Type::Vector => write!(f, "vector"),
+        }
+    }
+}
+
 impl Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.init.lexeme)
     }
 }
 
-// ------------------------ SPANNED IMPLEMENTATIONS --------------------------
+// ------------------------ IMPLEMENTATIONS --------------------------
+
+impl Expression {
+    pub fn get_type(&self) -> Option<Type> {
+        match self {
+            Expression::Unary(expr) => expr.borrow().typ.clone(),
+            Expression::Binary(expr) => expr.borrow().typ.clone(),
+            Expression::Literal(literal) => literal.borrow().typ.clone(),
+            Expression::Name(expr) => expr.borrow().typ.clone(),
+            Expression::Call(expr) => expr.borrow().typ.clone(),
+            Expression::Assign(expr) => expr.borrow().typ.clone(),
+            Expression::Get(expr) => expr.borrow().typ.clone(),
+            Expression::Set(expr) => expr.borrow().typ.clone(),
+        }
+    }
+}
 
 impl Spanned for Expression {
     fn span(&self) -> Span {
@@ -288,7 +329,7 @@ pub struct Parameter {
 
 #[derive(Debug, Clone)]
 pub struct FunctionSignature {
-    pub name: Token,
+    pub name: Identifier,
     pub params: Vec<Parameter>,
     pub return_type: Option<TypeExpression>,
 }
@@ -298,8 +339,6 @@ pub enum UnaryOperator {
     Identity,
     Negate,
     Not,
-    Increment,
-    Decrement,
 }
 
 impl Display for UnaryOperator {
@@ -308,8 +347,6 @@ impl Display for UnaryOperator {
             UnaryOperator::Identity => write!(f, "+"),
             UnaryOperator::Negate => write!(f, "-"),
             UnaryOperator::Not => write!(f, "!"),
-            UnaryOperator::Increment => write!(f, "++"),
-            UnaryOperator::Decrement => write!(f, "--"),
         }
     }
 }
@@ -318,8 +355,8 @@ impl Display for UnaryOperator {
 pub enum BinaryOperator {
     Add,
     Subtract,
-    Divide,
     Multiply,
+    Divide,
     Modulo,
     Equals,
     NotEq,
@@ -358,6 +395,7 @@ pub enum LiteralKind {
     Number(f64),
     String(String),
     Boolean(bool),
+    Vector(f64, f64, f64),
 }
 
 impl Display for LiteralKind {
@@ -366,6 +404,7 @@ impl Display for LiteralKind {
             LiteralKind::Number(n) => write!(f, "{}", n),
             LiteralKind::String(s) => write!(f, "{}", s),
             LiteralKind::Boolean(b) => write!(f, "{}", b),
+            LiteralKind::Vector(x, y, z) => write!(f, "<{}, {}, {}>", x, y, z),
         }
     }
 }
@@ -385,5 +424,63 @@ impl From<String> for LiteralKind {
 impl From<bool> for LiteralKind {
     fn from(value: bool) -> Self {
         LiteralKind::Boolean(value)
+    }
+}
+
+impl From<(f64, f64, f64)> for LiteralKind {
+    fn from(value: (f64, f64, f64)) -> Self {
+        LiteralKind::Vector(value.0, value.1, value.2)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum VariableType {
+    Save,
+    Local,
+    Game,
+    Let,
+}
+
+impl VariableType {
+    pub fn from_ttype(ttype: TokenType) -> Option<VariableType> {
+        match ttype {
+            TokenType::Save => Some(VariableType::Save),
+            TokenType::Local => Some(VariableType::Local),
+            TokenType::Game => Some(VariableType::Game),
+            TokenType::Let => Some(VariableType::Let),
+            _ => None,
+        }
+    }
+}
+
+impl Display for VariableType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VariableType::Save => write!(f, "save"),
+            VariableType::Local => write!(f, "local"),
+            VariableType::Game => write!(f, "game"),
+            VariableType::Let => write!(f, "let"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct Identifier {
+    pub name: String,
+    pub span: Span,
+}
+
+impl Display for Identifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+impl From<Token> for Identifier {
+    fn from(token: Token) -> Self {
+        Identifier {
+            name: token.lexeme,
+            span: token.span,
+        }
     }
 }

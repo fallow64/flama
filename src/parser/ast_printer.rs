@@ -18,7 +18,7 @@ pub fn print(program: Rc<Program>) -> FlamaResult<()> {
     let mut printer = Printer { indent: 0 };
 
     for item in program.iter() {
-        item.accept(&mut printer)?;
+        println!("{}", item.accept(&mut printer)?);
     }
 
     Ok(())
@@ -183,6 +183,8 @@ impl Visitor for Printer {
     }
 
     fn visit_let_stmt(&mut self, stmt: NodePtr<LetStmt>) -> FlamaResult<Self::StatementOutput> {
+        let keyword = stmt.borrow().kind.to_string();
+
         let type_annotation = match &stmt.borrow().type_annotation {
             Some(type_annotation) => format!(": {}", type_annotation.to_string()),
             None => "".to_string(),
@@ -194,8 +196,9 @@ impl Visitor for Printer {
         };
 
         Ok(format!(
-            "let {}{}{};",
-            stmt.borrow().name.lexeme,
+            "{} {}{}{};",
+            keyword,
+            stmt.borrow().name.name,
             type_annotation,
             value
         ))
@@ -211,7 +214,7 @@ impl Visitor for Printer {
     fn visit_event_item(&mut self, item: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput> {
         Ok(format!(
             "event {} {}",
-            item.borrow().name.lexeme,
+            item.borrow().name.name,
             item.borrow().body.accept(self)?
         ))
     }
@@ -222,7 +225,7 @@ impl Visitor for Printer {
     ) -> FlamaResult<Self::ItemOutput> {
         Ok(format!(
             "fn {} {}",
-            item.borrow().signature.name.lexeme,
+            item.borrow().signature.name.name,
             item.borrow().body.accept(self)?
         ))
     }
@@ -235,7 +238,7 @@ impl Visitor for Printer {
 
         Ok(format!(
             "const {}{} = {}",
-            item.borrow().name.lexeme,
+            item.borrow().name.name,
             type_annotation,
             item.borrow().value.accept(self)?
         ))

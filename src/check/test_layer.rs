@@ -13,17 +13,19 @@ use crate::{
     FlamaResult,
 };
 
-pub fn test(program: Rc<Program>) -> FlamaResult<()> {
-    let mut test_layer = TestLayer {};
+pub struct TestLayer;
 
-    for item in program.iter() {
-        item.accept(&mut test_layer)?;
+impl TestLayer {
+    pub fn test(program: Rc<Program>) -> FlamaResult<()> {
+        let mut test_layer = TestLayer {};
+
+        for item in program.iter() {
+            item.accept(&mut test_layer)?;
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }
-
-struct TestLayer;
 
 impl Visitor for TestLayer {
     type ExpressionOutput = ();

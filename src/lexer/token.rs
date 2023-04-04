@@ -2,14 +2,14 @@ use core::fmt::{self, Display};
 
 use crate::parser::ast::{BinaryOperator, UnaryOperator};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Token {
     pub ttype: TokenType,
     pub lexeme: String,
     pub span: Span,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum TokenType {
     // groupings
     LParen,
@@ -21,9 +21,7 @@ pub enum TokenType {
 
     // arithmetic operators
     Plus,
-    Increment,
     Minus,
-    Decrement,
     Star,
     Slash,
     Modulo,
@@ -32,9 +30,9 @@ pub enum TokenType {
     Not,
     Equals,
     NotEq,
-    Greater,
+    RArrow,
     GreaterEq,
-    Less,
+    LArrow,
     LessEq,
     Or,
     And,
@@ -53,6 +51,9 @@ pub enum TokenType {
     Event,
     Function,
     Let,
+    Save,
+    Local,
+    Game,
     If,
     Else,
     For,
@@ -68,6 +69,7 @@ pub enum TokenType {
     TypeNumber,
     TypeString,
     TypeBoolean,
+    TypeVector,
 
     // special
     Identifier,
@@ -79,8 +81,11 @@ impl TokenType {
     pub fn get_keyword(name: String) -> TokenType {
         match name.as_str() {
             "event" => TokenType::Event,
-            "fun" => TokenType::Function,
+            "fn" => TokenType::Function,
             "let" => TokenType::Let,
+            "local" => TokenType::Local,
+            "save" => TokenType::Save,
+            "game" => TokenType::Game,
             "if" => TokenType::If,
             "else" => TokenType::Else,
             "for" => TokenType::For,
@@ -95,6 +100,7 @@ impl TokenType {
             "num" => TokenType::TypeNumber,
             "string" => TokenType::TypeString,
             "bool" => TokenType::TypeBoolean,
+            "vector" => TokenType::TypeVector,
             _ => TokenType::Identifier,
         }
     }
@@ -109,9 +115,9 @@ impl TokenType {
             TokenType::Modulo => Some(BinaryOperator::Modulo),
             TokenType::Equals => Some(BinaryOperator::Equals),
             TokenType::NotEq => Some(BinaryOperator::NotEq),
-            TokenType::Greater => Some(BinaryOperator::Greater),
+            TokenType::RArrow => Some(BinaryOperator::Greater),
             TokenType::GreaterEq => Some(BinaryOperator::GreaterEq),
-            TokenType::Less => Some(BinaryOperator::Less),
+            TokenType::LArrow => Some(BinaryOperator::Less),
             TokenType::LessEq => Some(BinaryOperator::LessEq),
             TokenType::Or => Some(BinaryOperator::Or),
             TokenType::And => Some(BinaryOperator::And),
@@ -126,8 +132,6 @@ impl TokenType {
             TokenType::Plus => Some(UnaryOperator::Identity),
             TokenType::Minus => Some(UnaryOperator::Negate),
             TokenType::Not => Some(UnaryOperator::Not),
-            TokenType::Increment => Some(UnaryOperator::Increment),
-            TokenType::Decrement => Some(UnaryOperator::Decrement),
             _ => None,
         }
     }
@@ -143,18 +147,16 @@ impl Display for TokenType {
             TokenType::LBracket => f.write_str("LBRACKET")?,
             TokenType::RBracket => f.write_str("RBRACKET")?,
             TokenType::Plus => f.write_str("PLUS")?,
-            TokenType::Increment => f.write_str("INCREMENT")?,
             TokenType::Minus => f.write_str("MINUS")?,
-            TokenType::Decrement => f.write_str("DECREMENT")?,
             TokenType::Star => f.write_str("STAR")?,
             TokenType::Slash => f.write_str("SLASH")?,
             TokenType::Modulo => f.write_str("MODULO")?,
             TokenType::Not => f.write_str("NOT")?,
             TokenType::Equals => f.write_str("EQUALS")?,
             TokenType::NotEq => f.write_str("NOTEQUALS")?,
-            TokenType::Greater => f.write_str("GREATER")?,
+            TokenType::RArrow => f.write_str("RARROW")?,
             TokenType::GreaterEq => f.write_str("GREATEREQUALS")?,
-            TokenType::Less => f.write_str("LESS")?,
+            TokenType::LArrow => f.write_str("LARROW")?,
             TokenType::LessEq => f.write_str("LESSEQUALS")?,
             TokenType::Or => f.write_str("OR")?,
             TokenType::And => f.write_str("AND")?,
@@ -169,6 +171,9 @@ impl Display for TokenType {
             TokenType::Event => f.write_str("EVENT")?,
             TokenType::Function => f.write_str("FUNCTION")?,
             TokenType::Let => f.write_str("LET")?,
+            TokenType::Save => f.write_str("SAVE")?,
+            TokenType::Local => f.write_str("LOCAL")?,
+            TokenType::Game => f.write_str("GAME")?,
             TokenType::If => f.write_str("IF")?,
             TokenType::Else => f.write_str("ELSE")?,
             TokenType::For => f.write_str("FOR")?,
@@ -183,6 +188,7 @@ impl Display for TokenType {
             TokenType::TypeNumber => f.write_str("TYPENUMBER")?,
             TokenType::TypeString => f.write_str("TYPESTRING")?,
             TokenType::TypeBoolean => f.write_str("TYPEBOOLEAN")?,
+            TokenType::TypeVector => f.write_str("TYPEVECTOR")?,
             TokenType::Identifier => f.write_str("IDENTIFIER")?,
             TokenType::Number => f.write_str("NUMBER")?,
             TokenType::String => f.write_str("STRING")?,
@@ -245,7 +251,7 @@ impl Display for TokenType {
 /// A span of text in the source code.
 /// Note: this only contains the indices, not the line/column number.
 /// Also, for representing EOF, use `Span { start: 0, end: 0 }`.
-#[derive(Debug, PartialEq, Default, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy, Hash)]
 pub struct Span {
     pub start: usize,
     pub end: usize,

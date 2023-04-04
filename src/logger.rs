@@ -11,18 +11,20 @@ pub fn report_error(error: FlamaError) {
     let message = error.message;
 
     let source = fs::read_to_string(source_path.as_ref()).expect("Error while reading file.");
-    let (start, _) = get_line_column(&source, span);
+    let (start, end) = get_line_column(&source, span);
 
     // <error type>: <message>
     println!("{}: {}", error_type.to_string().red().bold(), message,);
 
     //    -> at <file_name>:<line>:<column>
     println!(
-        "{} at {}:{}:{}",
+        "{} at {}:{}:{} through {}:{}",
         "    ->".red(),
         source_path.to_str().unwrap(),
         start.0,
-        start.1
+        start.1,
+        end.0,
+        end.1
     );
 }
 

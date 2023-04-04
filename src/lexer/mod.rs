@@ -34,16 +34,8 @@ impl Lexer {
             '[' => Ok(self.make_spanned(TokenType::LBracket)),
             ']' => Ok(self.make_spanned(TokenType::RBracket)),
             // arithmetic
-            '+' => Ok(self.if_char_else('+', TokenType::Increment, TokenType::Plus)),
-            '-' => Ok({
-                if self.is_match('-') {
-                    self.make_spanned(TokenType::Decrement)
-                } else if self.is_match('>') {
-                    self.make_spanned(TokenType::Arrow)
-                } else {
-                    self.make_spanned(TokenType::Minus)
-                }
-            }),
+            '+' => Ok(self.make_spanned(TokenType::Plus)),
+            '-' => Ok(self.if_char_else('>', TokenType::Arrow, TokenType::Minus)),
             '*' => Ok(self.make_spanned(TokenType::Star)),
             '/' => Ok(self.make_spanned(TokenType::Slash)),
             '%' => Ok(self.make_spanned(TokenType::Modulo)),
@@ -58,8 +50,8 @@ impl Lexer {
                 }
             }),
             '!' => Ok(self.if_char_else('=', TokenType::NotEq, TokenType::Not)),
-            '>' => Ok(self.if_char_else('=', TokenType::GreaterEq, TokenType::Greater)),
-            '<' => Ok(self.if_char_else('=', TokenType::LessEq, TokenType::Less)),
+            '>' => Ok(self.if_char_else('=', TokenType::GreaterEq, TokenType::RArrow)),
+            '<' => Ok(self.if_char_else('=', TokenType::LessEq, TokenType::LArrow)),
             '|' if self.is_match('|') => Ok(self.make_spanned(TokenType::Or)),
             '&' if self.is_match('&') => Ok(self.make_spanned(TokenType::And)),
             // etc (assign and arrow above)
@@ -103,13 +95,13 @@ impl Lexer {
         // allow underscores for stuff like 1_000_000_000
         // we could do some type of check to prevent double underscores
         // or underscores before the decimal point, but this is fine for now
-        while self.peek().is_ascii_digit() || self.peek() == '_' {
+        while self.peek().is_ascii_digit() {
             chars.push(self.advance());
         }
 
         if self.peek() == '.' && self.peek_next().is_ascii_digit() {
             self.advance(); // consume the .
-            while self.peek().is_ascii_digit() || self.peek() == '_' {
+            while self.peek().is_ascii_digit() {
                 chars.push(self.advance());
             }
         }

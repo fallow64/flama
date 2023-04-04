@@ -39,6 +39,8 @@ pub type FlamaResult<T> = Result<T, FlamaError>;
 pub enum ErrorType {
     Syntax,
     Parsing,
+    Type,
+    Name,
 }
 
 impl Display for ErrorType {
@@ -46,6 +48,8 @@ impl Display for ErrorType {
         match self {
             ErrorType::Syntax => write!(f, "syntax error"),
             ErrorType::Parsing => write!(f, "parsing error"),
+            ErrorType::Type => write!(f, "type error"),
+            ErrorType::Name => write!(f, "name error"),
         }
     }
 }
