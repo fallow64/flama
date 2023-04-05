@@ -10,11 +10,18 @@ There is also a downloadable executable in the [releases](https://www.github.com
 
 ### Features:
 
-- Lexical scoping
-- Shadowing variables
-- Type checking and inference
-- Global variables
+- Lexical Scoping
+- Type Checking and Inference
 - Classes
-- Booleans
+- First-class(ish) Functions
+
+### TODO:
+
+- [ ] Compiler
+- [ ] Solidify Grammar
+- [ ] Clean up `src/check/type_checker.rs`
+- [ ] Seperate modules into different crates (?)
+- [ ] Design system for lexically-scoped variables with recursion
+- [ ] Classes
 
 <sup>it wouldn't be a programming language without a fire emoji in the readme</sup>
