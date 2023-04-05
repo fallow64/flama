@@ -42,7 +42,7 @@ impl Visitor for TypeChecker {
             (op, typ) => Err(self.error(
                 format!("operator '{}' not supported on type {}", op, typ),
                 expr.borrow().init.span,
-            )), // TODO
+            )),
         }
     }
 
@@ -62,7 +62,8 @@ impl Visitor for TypeChecker {
             (BinaryOperator::Subtract, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Subtract, Type::Vector, Type::Vector) => Ok(Type::Vector),
             (BinaryOperator::Multiply, Type::Number, Type::Number) => Ok(Type::Number),
-            // (BinaryOperator::Multiply, Type::Vector, Type::Vector) => Ok(Type::Vector), // todo: cross products?
+            (BinaryOperator::Multiply, Type::Vector, Type::Number) => Ok(Type::Number),
+            (BinaryOperator::Multiply, Type::Number, Type::Vector) => Ok(Type::Number),
             (BinaryOperator::Divide, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Modulo, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Equals, a, b) => {
