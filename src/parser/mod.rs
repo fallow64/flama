@@ -49,17 +49,29 @@ impl Parser {
     }
 
     pub fn parse_program(self) -> Result<Program, Vec<FlamaError>> {
+        let source_path = self.source_path.clone();
         let mut items = vec![];
         let mut errors = vec![];
+
+        let mut signatures = vec![];
         for result in self {
             match result {
-                Ok(item) => items.push(new_node_ptr(item)),
+                Ok(item) => {
+                    if let Item::Function(function) = item.clone() {
+                        signatures.push(function.borrow().signature.clone())
+                    }
+                    items.push(item);
+                }
                 Err(error) => errors.push(error),
             }
         }
 
         if errors.is_empty() {
-            Ok(items)
+            Ok(Program {
+                signatures,
+                items,
+                path: source_path,
+            })
         } else {
             Err(errors)
         }
@@ -775,7 +787,7 @@ impl Parser {
         let mut params = vec![];
 
         while !self.is_match(ending_type) {
-            let name = self.consume(TokenType::Identifier)?;
+            let name = self.consume(TokenType::Identifier)?.into();
             self.consume(TokenType::Colon)?;
             let type_annotation = self.parse_type_expression()?;
 

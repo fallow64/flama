@@ -12,7 +12,7 @@ use crate::{
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
-    ErrorType, FlamaError, FlamaResult,
+    ErrorType, FlamaError, FlamaResult, FlamaResults,
 };
 
 /// The type checker.
@@ -22,26 +22,6 @@ pub struct TypeChecker {
     environment: Environment<String, Type>,
     source_path: Rc<PathBuf>,
     return_type: Option<Type>,
-}
-
-impl TypeChecker {
-    pub fn new(source_path: Rc<PathBuf>) -> Self {
-        Self {
-            environment: Environment::new(),
-            source_path,
-            return_type: None,
-        }
-    }
-
-    pub fn check(program: Rc<Program>, source_path: Rc<PathBuf>) -> FlamaResult<()> {
-        let mut type_checker = TypeChecker::new(source_path);
-
-        for item in program.iter() {
-            item.accept(&mut type_checker)?;
-        }
-
-        Ok(())
-    }
 }
 
 impl Visitor for TypeChecker {
@@ -59,7 +39,10 @@ impl Visitor for TypeChecker {
             (UnaryOperator::Identity, Type::Number) => Ok(Type::Number),
             (UnaryOperator::Negate, Type::Number) => Ok(Type::Number),
             (UnaryOperator::Not, Type::Boolean) => Ok(Type::Boolean),
-            _ => Err(self.expected_error(typ.clone(), typ, expr.borrow().init.span)), // TODO
+            (op, typ) => Err(self.error(
+                format!("operator '{}' not supported on type {}", op, typ),
+                expr.borrow().init.span,
+            )), // TODO
         }
     }
 
@@ -110,7 +93,13 @@ impl Visitor for TypeChecker {
                     Err(self.expected_error(a, b, expr.borrow().init.span))
                 }
             }
-            _ => panic!("err"),
+            (op, typ1, typ2) => Err(self.error(
+                format!(
+                    "operator '{}' not supported on types {} and {}",
+                    op, typ1, typ2
+                ),
+                expr.borrow().init.span,
+            )),
         }
     }
 
@@ -153,10 +142,11 @@ impl Visitor for TypeChecker {
             }
 
             for (i, arg) in args.iter().enumerate() {
-                if arg != &signature.params[i].type_annotation.typ {
+                let expected_type = &signature.params[i].type_annotation.typ;
+                if arg != expected_type {
                     return Err(self.expected_error(
-                        Type::Function(Box::new(FunctionSignature::default())),
-                        Type::Function(signature),
+                        expected_type.clone(),
+                        arg.clone(),
                         expr.borrow().init.span,
                     ));
                 }
@@ -345,14 +335,16 @@ impl Visitor for TypeChecker {
         &mut self,
         decl: NodePtr<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
-        self.return_type = decl.borrow().signature.return_type.clone().map(|t| t.typ);
-        let signature = decl.borrow().signature.clone();
-        self.environment.define(
-            decl.borrow().signature.name.name.clone(),
-            Type::Function(Box::new(signature)),
-        );
+        // signature into scope already handled in Self::parse()
 
         self.environment.push();
+        self.return_type = decl.borrow().signature.return_type.clone().map(|te| te.typ);
+
+        for param in &decl.borrow().signature.params {
+            self.environment
+                .define(param.name.name.clone(), param.type_annotation.typ.clone());
+        }
+
         for stmt in &decl.borrow().stmts {
             stmt.accept(self)?;
         }
@@ -384,6 +376,38 @@ impl Visitor for TypeChecker {
 }
 
 impl TypeChecker {
+    pub fn new(source_path: Rc<PathBuf>) -> Self {
+        Self {
+            environment: Environment::new(),
+            source_path,
+            return_type: None,
+        }
+    }
+
+    pub fn check(program: Rc<Program>, source_path: Rc<PathBuf>) -> FlamaResults<()> {
+        let mut type_checker = TypeChecker::new(source_path);
+
+        for signature in &program.signatures {
+            type_checker.environment.define(
+                signature.name.name.clone(),
+                Type::Function(Box::new(signature.clone())),
+            );
+        }
+
+        let mut errs = vec![];
+        for item in &program.items {
+            if let Err(err) = item.accept(&mut type_checker) {
+                errs.push(err);
+            }
+        }
+
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(errs)
+        }
+    }
+
     fn error(&self, message: String, span: Span) -> FlamaError {
         FlamaError {
             message,

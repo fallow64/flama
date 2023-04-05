@@ -10,20 +10,27 @@ use crate::{
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
-    FlamaResult,
+    FlamaResult, FlamaResults,
 };
 
 pub struct TestLayer;
 
 impl TestLayer {
-    pub fn test(program: Rc<Program>) -> FlamaResult<()> {
+    pub fn test(program: Rc<Program>) -> FlamaResults<()> {
         let mut test_layer = TestLayer {};
 
-        for item in program.iter() {
-            item.accept(&mut test_layer)?;
+        let mut errs = vec![];
+        for item in &program.items {
+            if let Err(err) = item.accept(&mut test_layer) {
+                errs.push(err);
+            }
         }
 
-        Ok(())
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(errs)
+        }
     }
 }
 

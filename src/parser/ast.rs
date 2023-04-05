@@ -9,10 +9,7 @@ use crate::lexer::token::{Span, Spanned, Token, TokenType};
 
 pub type NodePtr<T> = Rc<RefCell<T>>;
 
-// TODO: Program should be a struct with the different types, path, etc...
-pub type Program = Vec<NodePtr<Item>>;
-
-pub struct Program2 {
+pub struct Program {
     pub signatures: Vec<FunctionSignature>,
     pub items: Vec<Item>,
     pub path: Rc<PathBuf>,
@@ -174,7 +171,7 @@ pub struct ExpressionStmt {
     pub expression: Expression,
 }
 
-// ------------------------- SECTIONS -------------------------
+// ------------------------- ITEMS -------------------------
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -240,13 +237,6 @@ impl From<LiteralKind> for Type {
     }
 }
 
-impl Type {
-    #[allow(dead_code)]
-    pub fn is_primitive(&self) -> bool {
-        matches!(self, Type::Number | Type::String | Type::Boolean)
-    }
-}
-
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -280,7 +270,7 @@ impl Display for TypeExpression {
     }
 }
 
-// ------------------------ IMPLEMENTATIONS --------------------------
+// ------------------------ IMPLS --------------------------
 
 impl Expression {
     pub fn get_type(&self) -> Option<Type> {
@@ -348,7 +338,7 @@ impl Spanned for TypeExpression {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Parameter {
-    pub name: Token,
+    pub name: Identifier,
     pub type_annotation: TypeExpression,
 }
 

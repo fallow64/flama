@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 /// An environment is a stack of scopes.
-/// Each scope is a map of keys to values.
+/// Each scope is a map of keys to values with a parent scope.
+#[derive(Debug)]
 pub struct Environment<K, V> {
     parent: Option<Box<Environment<K, V>>>,
     values: HashMap<K, V>,

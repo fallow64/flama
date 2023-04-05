@@ -5,31 +5,20 @@ use crate::{
     lexer::Lexer,
     logger,
     parser::{ast_printer, Parser},
-    FlamaError,
+    FlamaResults,
 };
 
 pub fn run(source: String, path_pointer: Rc<PathBuf>) {
     let lexer = Lexer::new(source, path_pointer.clone());
     let parser = Parser::new(lexer, path_pointer.clone());
 
-    let program = Rc::new(unwrap_multiple_or_exit(parser.parse_program()));
-    unwrap_or_exit(check::check(program.clone(), path_pointer.clone()));
-    unwrap_or_exit(ast_printer::print(program.clone()));
+    let program = Rc::new(unwrap_mul_or_exit(parser.parse_program()));
+    unwrap_mul_or_exit(check::check(program.clone(), path_pointer.clone()));
+    unwrap_mul_or_exit(ast_printer::print(program.clone()));
 }
 
-/// Unwraps a `Result` or exits the program with error code `1` while logging an error.
-fn unwrap_or_exit<T>(result: Result<T, FlamaError>) -> T {
-    match result {
-        Ok(value) => value,
-        Err(err) => {
-            logger::report_error(err);
-            process::exit(1);
-        }
-    }
-}
-
-/// Unwraps a `Result` or exits the program with error code `1` while logging all errors.
-fn unwrap_multiple_or_exit<T>(result: Result<T, Vec<FlamaError>>) -> T {
+/// Unwraps a `FlamaResults` or exits the program with error code `1` while logging all errors.
+fn unwrap_mul_or_exit<T>(result: FlamaResults<T>) -> T {
     match result {
         Ok(value) => value,
         Err(errs) => {

@@ -35,6 +35,8 @@ fn run_file(file_name: String) {
 
 pub type FlamaResult<T> = Result<T, FlamaError>;
 
+pub type FlamaResults<T> = Result<T, Vec<FlamaError>>;
+
 #[derive(Debug)]
 pub enum ErrorType {
     Syntax,

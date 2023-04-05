@@ -9,7 +9,7 @@ use crate::{
         },
         visitor::{ExpressionVisitable, StatementVisitable, Visitor},
     },
-    FlamaResult,
+    FlamaResult, FlamaResults,
 };
 
 use super::{
@@ -17,14 +17,21 @@ use super::{
     visitor::ItemVisitable,
 };
 
-pub fn print(program: Rc<Program>) -> FlamaResult<()> {
+pub fn print(program: Rc<Program>) -> FlamaResults<()> {
     let mut printer = Printer { indent: 0 };
 
-    for item in program.iter() {
-        println!("{}", item.accept(&mut printer)?);
+    let mut errs = vec![];
+    for item in &program.items {
+        if let Err(err) = item.accept(&mut printer) {
+            errs.push(err);
+        }
     }
 
-    Ok(())
+    if errs.is_empty() {
+        Ok(())
+    } else {
+        Err(errs)
+    }
 }
 
 struct Printer {
