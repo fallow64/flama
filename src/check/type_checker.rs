@@ -118,7 +118,7 @@ impl Visitor for TypeChecker {
         let value_type = self.environment.get(&name.name);
 
         if value_type.is_none() {
-            return Err(self.undefined_variable_error(name.name, name.span));
+            return Err(self.undefined_variable_error(&name.name, name.span));
         } else {
             Ok(value_type.unwrap().clone())
         }
@@ -170,10 +170,9 @@ impl Visitor for TypeChecker {
         let var_type = self.environment.get(&expr.borrow().name.lexeme);
 
         if var_type.is_none() {
-            return Err(self.undefined_variable_error(
-                expr.borrow().name.lexeme.clone(),
-                expr.borrow().name.span,
-            ));
+            return Err(
+                self.undefined_variable_error(&expr.borrow().name.lexeme, expr.borrow().name.span)
+            );
         }
 
         let var_type = var_type.unwrap();
@@ -275,8 +274,8 @@ impl Visitor for TypeChecker {
 
         if value_type != self.return_type {
             return Err(self.expected_error_option(
-                self.return_type.clone(),
-                value_type,
+                self.return_type.as_ref(),
+                value_type.as_ref(),
                 stmt.borrow().value.as_ref().unwrap().span(),
             ));
         }
@@ -286,6 +285,7 @@ impl Visitor for TypeChecker {
 
     fn visit_let_stmt(&mut self, stmt: NodePtr<LetStmt>) -> FlamaResult<Self::StatementOutput> {
         let type_annotation = stmt.borrow().type_annotation.clone().map(|t| t.typ);
+        let name = stmt.borrow().name.name.clone();
 
         let value_type = if let Some(value_type) = &stmt.borrow().value {
             Some(value_type.accept(self)?)
@@ -305,15 +305,16 @@ impl Visitor for TypeChecker {
                     type_annotation
                 }
             }
-            (None, None) => {
-                todo!()
-            }
+            (None, None) => return Err(self.cannot_infer_error(&name, stmt.borrow().init.span)),
             (Some(type_annotation), None) => type_annotation,
             (None, Some(value_type)) => value_type,
         };
 
-        self.environment
-            .define(stmt.borrow().name.name.clone(), typ);
+        if let Type::Void = typ {
+            return Err(self.cannot_infer_error(&name, stmt.borrow().name.span));
+        }
+
+        self.environment.define(name, typ);
 
         Ok(())
     }
@@ -426,21 +427,28 @@ impl TypeChecker {
 
     fn expected_error_option(
         &self,
-        expected: Option<Type>,
-        actual: Option<Type>,
+        expected: Option<&Type>,
+        actual: Option<&Type>,
         span: Span,
     ) -> FlamaError {
         self.error(
             format!(
                 "expected type {}, but got type {}",
-                expected.unwrap_or(Type::default()),
-                actual.unwrap_or(Type::default())
+                expected.unwrap_or(&Type::default()),
+                actual.unwrap_or(&Type::default())
             ),
             span,
         )
     }
 
-    fn undefined_variable_error(&self, name: String, span: Span) -> FlamaError {
+    fn undefined_variable_error(&self, name: &String, span: Span) -> FlamaError {
         self.error(format!("undefined variable '{}'", name), span)
+    }
+
+    fn cannot_infer_error(&self, variable: &String, span: Span) -> FlamaError {
+        self.error(
+            format!("cannot infer type for variable '{}'", variable),
+            span,
+        )
     }
 }
