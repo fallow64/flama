@@ -1,14 +1,14 @@
 use std::{path::PathBuf, rc::Rc};
 
 use crate::{
-    check::environment::Environment,
+    check::{environment::Environment, types::Type},
     lexer::token::{Span, Spanned},
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ConstItem,
             ContinueStmt, EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr,
             IfStmt, LetStmt, ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program,
-            ReturnStmt, SetExpr, Type, UnaryExpr, UnaryOperator, WhileStmt,
+            ReturnStmt, SetExpr, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },

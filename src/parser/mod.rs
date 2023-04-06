@@ -1,6 +1,7 @@
 use std::{mem, path::PathBuf, rc::Rc};
 
 use crate::{
+    check::types::Type,
     lexer::{
         token::{Span, Token, TokenType},
         Lexer,
@@ -13,7 +14,7 @@ use self::ast::{
     new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
     Expression, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, Item,
     LetStmt, ListExpr, LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr,
-    Statement, Type, TypeExpression, UnaryExpr, VariableType, WhileStmt,
+    Statement, TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
