@@ -4,7 +4,10 @@ use crate::{
     check,
     lexer::Lexer,
     logger,
-    parser::{ast_printer, Parser},
+    parser::{
+        ast_printer::{self, Printer},
+        Parser,
+    },
     FlamaResults,
 };
 
@@ -14,7 +17,7 @@ pub fn run(source: String, path_pointer: Rc<PathBuf>) {
 
     let program = Rc::new(unwrap_mul_or_exit(parser.parse_program()));
     unwrap_mul_or_exit(check::check(program.clone(), path_pointer.clone()));
-    unwrap_mul_or_exit(ast_printer::print(program.clone()));
+    unwrap_mul_or_exit(Printer::print(program.clone()));
 }
 
 /// Unwraps a `FlamaResults` or exits the program with error code `1` while logging all errors.

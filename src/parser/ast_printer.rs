@@ -13,24 +13,7 @@ use crate::{
     FlamaResult, FlamaResults,
 };
 
-pub fn print(program: Rc<Program>) -> FlamaResults<()> {
-    let mut printer = Printer { indent: 0 };
-
-    let mut errs = vec![];
-    for item in &program.items {
-        if let Err(err) = item.accept(&mut printer) {
-            errs.push(err);
-        }
-    }
-
-    if errs.is_empty() {
-        Ok(())
-    } else {
-        Err(errs)
-    }
-}
-
-struct Printer {
+pub struct Printer {
     indent: usize,
 }
 
@@ -231,6 +214,23 @@ impl Visitor for Printer {
 }
 
 impl Printer {
+    pub fn print(program: Rc<Program>) -> FlamaResults<()> {
+        let mut printer = Printer { indent: 0 };
+
+        let mut errs = vec![];
+        for item in &program.items {
+            if let Err(err) = item.accept(&mut printer) {
+                errs.push(err);
+            }
+        }
+
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(errs)
+        }
+    }
+
     fn visit_multiple<'a>(&mut self, stmts: &'a Vec<Statement>) -> FlamaResult<String> {
         let mut output = String::from("{\n");
         self.indent += 4;
