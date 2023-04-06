@@ -4,9 +4,9 @@ use crate::{
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem,
-            ExpressionStmt, FunctionItem, GetExpr, IfStmt, LetStmt, ListExpr, LiteralExpr,
-            NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr, Statement, UnaryExpr,
-            WhileStmt,
+            ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt, ListExpr,
+            LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr, Statement,
+            StructItem, UnaryExpr, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -66,6 +66,29 @@ impl Visitor for Printer {
 
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
         Ok(expr.borrow().name.name.clone())
+    }
+
+    fn visit_instanciate_expr(
+        &mut self,
+        expr: NodePtr<InstanciateExpr>,
+    ) -> FlamaResult<Self::ExpressionOutput> {
+        let mut output = expr.borrow().name.name.clone();
+        output.push_str(" {\n");
+        self.indent += 4;
+
+        for (name, expr) in expr.borrow().fields.iter() {
+            output.push_str(" ".repeat(self.indent).as_str());
+            output.push_str(&name.name);
+            output.push_str(": ");
+            output.push_str(&expr.accept(self)?);
+            output.push_str("\n");
+        }
+        self.indent -= 4;
+        output.push_str(" ".repeat(self.indent).as_str());
+        output.push_str("}");
+
+        Ok(output)
+        // todo!()
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -211,6 +234,26 @@ impl Visitor for Printer {
             self.visit_multiple(&item.borrow().stmts)?
         ))
     }
+
+    fn visit_struct_item(&mut self, decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput> {
+        let mut output = String::from("struct ");
+
+        output.push_str(&decl.borrow().name.name);
+        output.push_str(" {\n");
+
+        for (ident, typ) in &decl.borrow().fields {
+            output.push_str(" ".repeat(self.indent + 4).as_str());
+            output.push_str(&&ident.name);
+            output.push_str(": ");
+            output.push_str(&typ.to_string());
+            output.push_str(",\n");
+        }
+
+        output.push_str(" ".repeat(self.indent).as_str());
+        output.push_str("}");
+
+        Ok(output)
+    }
 }
 
 impl Printer {
@@ -219,8 +262,9 @@ impl Printer {
 
         let mut errs = vec![];
         for item in &program.items {
-            if let Err(err) = item.accept(&mut printer) {
-                errs.push(err);
+            match item.accept(&mut printer) {
+                Ok(output) => println!("{}", output),
+                Err(err) => errs.push(err),
             }
         }
 

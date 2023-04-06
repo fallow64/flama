@@ -14,6 +14,7 @@ pub type NodePtr<T> = Rc<RefCell<T>>;
 
 pub struct Program {
     pub signatures: Vec<FunctionSignature>,
+    pub structs: Vec<NodePtr<StructItem>>,
     pub items: Vec<Item>,
     pub path: Rc<PathBuf>,
 }
@@ -33,6 +34,7 @@ pub enum Expression {
     Literal(NodePtr<LiteralExpr>),
     List(NodePtr<ListExpr>),
     Name(NodePtr<NameExpr>),
+    Instanciate(NodePtr<InstanciateExpr>),
     Call(NodePtr<CallExpr>),
     Assign(NodePtr<AssignExpr>),
     Get(NodePtr<GetExpr>),
@@ -74,6 +76,14 @@ pub struct ListExpr {
 pub struct NameExpr {
     pub init: Token,
     pub name: Identifier,
+    pub typ: Option<Type>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InstanciateExpr {
+    pub init: Token,
+    pub name: Identifier,
+    pub fields: Vec<(Identifier, Expression)>,
     pub typ: Option<Type>,
 }
 
@@ -188,6 +198,7 @@ pub struct ExpressionStmt {
 pub enum Item {
     Event(NodePtr<EventItem>),
     Function(NodePtr<FunctionItem>),
+    Struct(NodePtr<StructItem>),
 }
 
 #[derive(Debug, Clone)]
@@ -204,16 +215,19 @@ pub struct FunctionItem {
     pub signature: FunctionSignature,
 }
 
+#[derive(Debug, Clone)]
+pub struct StructItem {
+    pub init: Token,
+    pub name: Identifier,
+    pub fields: Vec<(Identifier, TypeExpression)>,
+}
+
 // ------------------------- TYPED EXPRESSIONS -------------------------
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeExpression {
     pub init: Token,
     pub typ: Type,
-    // Number(Token),
-    // String(Token),
-    // Boolean(Token),
-    // Identifier(Token),
 }
 
 impl Display for TypeExpression {
@@ -230,9 +244,10 @@ impl Expression {
         match self {
             Expression::Unary(expr) => expr.borrow().typ.clone(),
             Expression::Binary(expr) => expr.borrow().typ.clone(),
-            Expression::Literal(literal) => literal.borrow().typ.clone(),
-            Expression::List(list) => list.borrow().typ.clone(),
+            Expression::Literal(expr) => expr.borrow().typ.clone(),
+            Expression::List(expr) => expr.borrow().typ.clone(),
             Expression::Name(expr) => expr.borrow().typ.clone(),
+            Expression::Instanciate(expr) => expr.borrow().typ.clone(),
             Expression::Call(expr) => expr.borrow().typ.clone(),
             Expression::Assign(expr) => expr.borrow().typ.clone(),
             Expression::Get(expr) => expr.borrow().typ.clone(),
@@ -246,9 +261,10 @@ impl Spanned for Expression {
         match self {
             Expression::Unary(expr) => expr.borrow().init.span,
             Expression::Binary(expr) => expr.borrow().init.span,
-            Expression::Literal(literal) => literal.borrow().init.span,
-            Expression::List(list) => list.borrow().init.span,
+            Expression::Literal(expr) => expr.borrow().init.span,
+            Expression::List(expr) => expr.borrow().init.span,
             Expression::Name(expr) => expr.borrow().init.span,
+            Expression::Instanciate(expr) => expr.borrow().init.span,
             Expression::Call(expr) => expr.borrow().init.span,
             Expression::Assign(expr) => expr.borrow().init.span,
             Expression::Get(expr) => expr.borrow().init.span,
@@ -278,6 +294,7 @@ impl Spanned for Item {
         match self {
             Item::Event(sect) => sect.borrow().init.span,
             Item::Function(sect) => sect.borrow().init.span,
+            Item::Struct(sect) => sect.borrow().init.span,
         }
     }
 }
@@ -296,10 +313,22 @@ pub struct Parameter {
     pub type_annotation: TypeExpression,
 }
 
+#[derive(Debug, Clone)]
+pub struct Field {
+    pub name: Identifier,
+    pub value: Expression,
+}
+
+impl Display for Parameter {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.name, self.type_annotation)
+    }
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct FunctionSignature {
     pub name: Identifier,
-    pub params: Vec<Parameter>,
+    pub params: Vec<(Identifier, TypeExpression)>,
     pub return_type: Option<TypeExpression>,
 }
 

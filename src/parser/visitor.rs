@@ -2,8 +2,9 @@ use crate::FlamaResult;
 
 use super::ast::{
     AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
-    ExpressionStmt, FunctionItem, GetExpr, IfStmt, Item, LetStmt, ListExpr, LiteralExpr, NameExpr,
-    NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr, WhileStmt,
+    ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, Item, LetStmt, ListExpr,
+    LiteralExpr, NameExpr, NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, StructItem,
+    UnaryExpr, WhileStmt,
 };
 
 pub trait Visitor {
@@ -23,6 +24,10 @@ pub trait Visitor {
     ) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_instanciate_expr(
+        &mut self,
+        expr: NodePtr<InstanciateExpr>,
+    ) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_assign_expr(
         &mut self,
@@ -53,6 +58,7 @@ pub trait Visitor {
     fn visit_event_item(&mut self, decl: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput>;
     fn visit_function_item(&mut self, decl: NodePtr<FunctionItem>)
         -> FlamaResult<Self::ItemOutput>;
+    fn visit_struct_item(&mut self, decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput>;
 }
 
 pub trait ExpressionVisitable {
@@ -75,6 +81,7 @@ impl ExpressionVisitable for Expression {
             Expression::Literal(expr) => visitor.visit_literal_expr(expr.clone()),
             Expression::List(expr) => visitor.visit_list_expr(expr.clone()),
             Expression::Name(expr) => visitor.visit_name_expr(expr.clone()),
+            Expression::Instanciate(expr) => visitor.visit_instanciate_expr(expr.clone()),
             Expression::Call(expr) => visitor.visit_call_expr(expr.clone()),
             Expression::Assign(expr) => visitor.visit_assign_expr(expr.clone()),
             Expression::Get(expr) => visitor.visit_get_expr(expr.clone()),
@@ -116,6 +123,7 @@ impl ItemVisitable for Item {
         match self {
             Item::Event(item) => visitor.visit_event_item(item.clone()),
             Item::Function(item) => visitor.visit_function_item(item.clone()),
+            Item::Struct(item) => visitor.visit_struct_item(item.clone()),
         }
     }
 }
@@ -155,6 +163,12 @@ impl ExpressionVisitable for NodePtr<ListExpr> {
 impl ExpressionVisitable for NodePtr<NameExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_name_expr(self.clone())
+    }
+}
+
+impl ExpressionVisitable for NodePtr<InstanciateExpr> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
+        visitor.visit_instanciate_expr(self.clone())
     }
 }
 
@@ -245,5 +259,11 @@ impl ItemVisitable for NodePtr<EventItem> {
 impl ItemVisitable for NodePtr<FunctionItem> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         visitor.visit_function_item(self.clone())
+    }
+}
+
+impl ItemVisitable for NodePtr<StructItem> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
+        visitor.visit_struct_item(self.clone())
     }
 }

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::BTreeMap, fmt::Display};
 
 use crate::parser::ast::{FunctionSignature, Identifier, LiteralKind};
 
@@ -10,6 +10,7 @@ pub enum Type {
     List(Box<Type>),
     Identifier(Identifier),
     Function(Box<FunctionSignature>),
+    Custom(BTreeMap<String, Box<Type>>),
 
     Any, // used for list inference
     #[default]
@@ -46,12 +47,23 @@ impl Display for Type {
                     "fn<({}) -> {}>",
                     sig.params
                         .iter()
-                        .map(|p| p.type_annotation.typ.to_string())
+                        .map(|p| format!("{}: {}", p.0, p.1))
                         .collect::<Vec<String>>()
                         .join(", "),
                     sig.return_type
                         .as_ref()
                         .map_or(&Type::default(), |te| &te.typ)
+                )
+            }
+            Type::Custom(fields) => {
+                write!(
+                    f,
+                    "custom<({})>",
+                    fields
+                        .iter()
+                        .map(|(name, typ)| format!("{}: {}", name, typ))
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 )
             }
             Type::Any => write!(f, "any"),

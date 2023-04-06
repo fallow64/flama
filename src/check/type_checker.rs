@@ -1,4 +1,4 @@
-use std::{path::PathBuf, rc::Rc};
+use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
 
 use crate::{
     check::{environment::Environment, types::Type},
@@ -6,9 +6,9 @@ use crate::{
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
-            EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, IfStmt, LetStmt,
-            ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr,
-            UnaryExpr, UnaryOperator, WhileStmt,
+            EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, IfStmt,
+            InstanciateExpr, LetStmt, ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program,
+            ReturnStmt, SetExpr, StructItem, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -20,6 +20,7 @@ use crate::{
 /// The type checker is responsible for checking and inferring the types of expressions and statements.
 pub struct TypeChecker {
     environment: Environment<String, Type>,
+    typedefs: Environment<String, Type>,
     source_path: Rc<PathBuf>,
     return_type: Type,
 }
@@ -145,6 +146,15 @@ impl Visitor for TypeChecker {
         }
     }
 
+    fn visit_instanciate_expr(
+        &mut self,
+        expr: NodePtr<InstanciateExpr>,
+    ) -> FlamaResult<Self::ExpressionOutput> {
+        let struct_name = expr.borrow().name.clone();
+
+        todo!()
+    }
+
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let callee_type = expr.borrow().callee.accept(self)?;
         if let Type::Function(signature) = callee_type {
@@ -164,7 +174,7 @@ impl Visitor for TypeChecker {
             }
 
             for (i, arg) in args.iter().enumerate() {
-                let expected_type = &signature.params[i].type_annotation.typ;
+                let expected_type = &signature.params[i].1.typ;
                 if arg != expected_type {
                     return Err(self.expected_error(&expected_type, &arg, expr.borrow().init.span));
                 }
@@ -365,7 +375,7 @@ impl Visitor for TypeChecker {
 
         for param in &decl.borrow().signature.params {
             self.environment
-                .define(param.name.name.clone(), param.type_annotation.typ.clone());
+                .define(param.0.name.clone(), param.1.typ.clone());
         }
 
         for stmt in &decl.borrow().stmts {
@@ -376,12 +386,18 @@ impl Visitor for TypeChecker {
 
         Ok(())
     }
+
+    fn visit_struct_item(&mut self, _decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput> {
+        // typedefs handled in Self::check()
+        Ok(())
+    }
 }
 
 impl TypeChecker {
     pub fn new(source_path: Rc<PathBuf>) -> Self {
         Self {
             environment: Environment::new(),
+            typedefs: Environment::new(),
             source_path,
             return_type: Type::default(),
         }
@@ -395,6 +411,20 @@ impl TypeChecker {
                 signature.name.name.clone(),
                 Type::Function(Box::new(signature.clone())),
             );
+        }
+
+        for strukt in &program.structs {
+            // TODO: clean this up, mayb enot BTreeMaps?
+            let map = strukt
+                .borrow()
+                .fields
+                .iter()
+                .map(|field| (field.0.name.clone(), Box::new(field.1.typ.clone())))
+                .collect::<BTreeMap<String, Box<Type>>>();
+
+            type_checker
+                .typedefs
+                .define(strukt.borrow().name.name.clone(), Type::Custom(map))
         }
 
         let mut errs = vec![];
@@ -429,6 +459,10 @@ impl TypeChecker {
 
     fn undefined_variable_error(&self, name: &String, span: Span) -> FlamaError {
         self.error(format!("undefined variable '{}'", name), span)
+    }
+
+    fn undefined_type_error(&self, name: &String, span: Span) -> FlamaError {
+        self.error(format!("undefined type '{}'", name), span)
     }
 
     fn cannot_infer_error(&self, variable: &String, span: Span) -> FlamaError {

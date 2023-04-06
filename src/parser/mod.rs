@@ -12,9 +12,9 @@ use crate::{
 
 use self::ast::{
     new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
-    ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, Item, LetStmt,
-    ListExpr, LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr, Statement,
-    TypeExpression, UnaryExpr, VariableType, WhileStmt,
+    ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, InstanciateExpr,
+    Item, LetStmt, ListExpr, LiteralExpr, NameExpr, PrintStmt, Program, ReturnStmt, SetExpr,
+    Statement, StructItem, TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
@@ -55,14 +55,17 @@ impl Parser {
         let mut errors = vec![];
 
         let mut signatures = vec![];
+        let mut structs = vec![];
         for result in self {
             match result {
-                Ok(item) => {
-                    if let Item::Function(function) = item.clone() {
-                        signatures.push(function.borrow().signature.clone())
+                Ok(item) => match item {
+                    Item::Function(ref function) => {
+                        signatures.push(function.borrow().signature.clone());
+                        items.push(item);
                     }
-                    items.push(item);
-                }
+                    Item::Struct(structure) => structs.push(structure),
+                    _ => items.push(item),
+                },
                 Err(error) => errors.push(error),
             }
         }
@@ -70,6 +73,7 @@ impl Parser {
         if errors.is_empty() {
             Ok(Program {
                 signatures,
+                structs,
                 items,
                 path: source_path,
             })
@@ -94,6 +98,10 @@ impl Parser {
             },
             TokenType::Function => match self.parse_function_item() {
                 Ok(function) => return Ok(Item::Function(new_node_ptr(function))),
+                Err(err) => err,
+            },
+            TokenType::Struct => match self.parse_struct_item() {
+                Ok(structure) => return Ok(Item::Struct(new_node_ptr(structure))),
                 Err(err) => err,
             },
             _ => self
@@ -154,6 +162,17 @@ impl Parser {
                 return_type,
             },
         })
+    }
+
+    fn parse_struct_item(&mut self) -> FlamaResult<StructItem> {
+        let init = self.consume(TokenType::Struct)?;
+        let name = self.consume(TokenType::Identifier)?.into();
+
+        self.consume(TokenType::LBrace)?;
+        let fields = self.get_parameters(TokenType::RBrace)?;
+        self.consume(TokenType::RBrace)?;
+
+        Ok(StructItem { init, name, fields })
     }
 
     // ------------------------- STATEMENTS -------------------------
@@ -571,7 +590,7 @@ impl Parser {
 
     /// `<primary> ( ( "(" <expression>* ")" ) | ("." <identifier> ) )*`
     fn parse_call(&mut self) -> FlamaResult<Expression> {
-        let mut expr = self.parse_primary()?;
+        let mut expr = self.parse_instanciate()?;
 
         // handle calling functions and "get" expressions
         loop {
@@ -604,6 +623,38 @@ impl Parser {
         }
 
         Ok(expr)
+    }
+
+    fn parse_instanciate(&mut self) -> FlamaResult<Expression> {
+        let expr = self.parse_primary()?;
+
+        if let Expression::Name(name) = &expr {
+            let init = self.consume(TokenType::LBrace)?;
+
+            let mut fields = vec![];
+            while !self.is_match(TokenType::RBrace) {
+                let name: Identifier = self.consume(TokenType::Identifier)?.into();
+                self.consume(TokenType::Colon)?;
+                let value = self.parse_expression()?;
+
+                fields.push((name, value));
+
+                if !self.is_match(TokenType::RBrace) {
+                    self.consume(TokenType::Comma)?;
+                }
+            }
+
+            self.consume(TokenType::RBrace)?;
+
+            Ok(Expression::Instanciate(new_node_ptr(InstanciateExpr {
+                init,
+                name: name.borrow().name.clone(),
+                fields,
+                typ: None,
+            })))
+        } else {
+            Ok(expr)
+        }
     }
 
     /// `"(" <expression> ")" | <string> | <number> | <identifier> | ("true" | "false")`
@@ -737,7 +788,10 @@ impl Parser {
     }
 
     /// Returns a vector of parameters. Does not consume the opening or closing tokens.
-    fn get_parameters(&mut self, ending_type: TokenType) -> FlamaResult<Vec<Parameter>> {
+    fn get_parameters(
+        &mut self,
+        ending_type: TokenType,
+    ) -> FlamaResult<Vec<(Identifier, TypeExpression)>> {
         let mut params = vec![];
 
         while !self.is_match(ending_type) {
@@ -745,10 +799,7 @@ impl Parser {
             self.consume(TokenType::Colon)?;
             let type_annotation = self.parse_type_expression()?;
 
-            params.push(Parameter {
-                name,
-                type_annotation,
-            });
+            params.push((name, type_annotation));
 
             if !self.is_match(ending_type) {
                 self.consume(TokenType::Comma)?;

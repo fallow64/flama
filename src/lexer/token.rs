@@ -65,6 +65,7 @@ pub enum TokenType {
     False,
     Print,
     Const,
+    Struct,
     // types
     TypeNumber,
     TypeString,
@@ -97,6 +98,7 @@ impl TokenType {
             "false" => TokenType::False,
             "print" => TokenType::Print,
             "const" => TokenType::Const,
+            "struct" => TokenType::Struct,
             "num" => TokenType::TypeNumber,
             "string" => TokenType::TypeString,
             "bool" => TokenType::TypeBoolean,
@@ -185,6 +187,7 @@ impl Display for TokenType {
             TokenType::False => f.write_str("FALSE")?,
             TokenType::Print => f.write_str("PRINT")?,
             TokenType::Const => f.write_str("CONST")?,
+            TokenType::Struct => f.write_str("STRUCT")?,
             TokenType::TypeNumber => f.write_str("TYPENUMBER")?,
             TokenType::TypeString => f.write_str("TYPESTRING")?,
             TokenType::TypeBoolean => f.write_str("TYPEBOOLEAN")?,
