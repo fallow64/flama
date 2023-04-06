@@ -232,113 +232,90 @@ impl Iterator for Lexer {
     type Item = FlamaResult<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.skip_whitespace();
+        self.start = self.current;
+
         if self.is_at_end() {
             None
         } else {
-            self.skip_whitespace();
-            self.start = self.current;
             Some(self.scan_token())
         }
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use super::*;
 
     #[test]
     fn test_all_tokens() {
-        let expectations = vec![
-            Token::LParen,
-            Token::RParen,
-            Token::LBrace,
-            Token::RBrace,
-            Token::LBracket,
-            Token::RBracket,
-            Token::Add,
-            Token::Increment,
-            Token::Minus,
-            Token::Decrement,
-            Token::Multiply,
-            Token::Power,
-            Token::Divide,
-            Token::Modulo,
-            Token::Negate,
-            Token::Equals,
-            Token::NotEq,
-            Token::Greater,
-            Token::GreaterEq,
-            Token::Less,
-            Token::LessEq,
-            Token::Or,
-            Token::And,
-            Token::Assign,
-            Token::Arrow,
-            Token::Dot,
-            Token::Comma,
-            Token::Colon,
-            Token::SemiColon,
-            Token::Event,
-            Token::Function,
-            Token::Let,
-            Token::If,
-            Token::Else,
-            Token::For,
-            Token::While,
-            Token::Continue,
-            Token::Break,
-            Token::Return,
-            Token::True,
-            Token::False,
-            Token::Print,
-        ];
-
-        let src = r"
-            ( ) { } [ ]
-            + ++ - --
-            * ** / %
-            ! == != > >=
-            < <= || &&
-            = -> . , : ;
-
-            event
-            function
-            let
-            if
-            else
-            for
-            while
-            continue
-            break
-            return
-            true
-            false
-            print
-        ";
-
-        let lexer = Lexer::new(src.to_string());
-        for (got, expected) in lexer.zip(expectations.into_iter()) {
-            let token = got.unwrap().val;
-
-            assert_eq!(expected, token, "expected {expected} but got {token}");
-        }
-    }
-
-    #[test]
-    fn test_special() {
-        let expectations = vec![Token::String("hello".to_string())];
-
-        let src = r#"
-            "hello"
+        let source = r#"
+            () {} [] + - * / % ! == != > >= < <= || && = -> => . , : ; ...
+            event fn let save local game if else for while continue break return true false print const
+            num string bool vector this_is_an_identifier "this_is_a_string" 1234 3.1415926
         "#;
 
-        let lexer = Lexer::new(src.to_string());
-        for (got, expected) in lexer.zip(expectations.into_iter()) {
-            let token = got.unwrap().val;
+        let expected = vec![
+            TokenType::LParen,
+            TokenType::RParen,
+            TokenType::LBrace,
+            TokenType::RBrace,
+            TokenType::LBracket,
+            TokenType::RBracket,
+            TokenType::Plus,
+            TokenType::Minus,
+            TokenType::Star,
+            TokenType::Slash,
+            TokenType::Modulo,
+            TokenType::Not,
+            TokenType::Equals,
+            TokenType::NotEq,
+            TokenType::RArrow,
+            TokenType::GreaterEq,
+            TokenType::LArrow,
+            TokenType::LessEq,
+            TokenType::Or,
+            TokenType::And,
+            TokenType::Assign,
+            TokenType::Arrow,
+            TokenType::FatArrow,
+            TokenType::Dot,
+            TokenType::Comma,
+            TokenType::Colon,
+            TokenType::SemiColon,
+            TokenType::Ellipsis,
+            TokenType::Event,
+            TokenType::Function,
+            TokenType::Let,
+            TokenType::Save,
+            TokenType::Local,
+            TokenType::Game,
+            TokenType::If,
+            TokenType::Else,
+            TokenType::For,
+            TokenType::While,
+            TokenType::Continue,
+            TokenType::Break,
+            TokenType::Return,
+            TokenType::True,
+            TokenType::False,
+            TokenType::Print,
+            TokenType::Const,
+            TokenType::TypeNumber,
+            TokenType::TypeString,
+            TokenType::TypeBoolean,
+            TokenType::TypeVector,
+            TokenType::Identifier,
+            TokenType::String,
+            TokenType::Number,
+            TokenType::Number,
+        ];
 
-            assert_eq!(expected, token, "expected {expected} but got {token}");
+        let lexer = Lexer::new(source.to_string(), Rc::new("test".to_string().into()));
+        for (i, token) in lexer.enumerate() {
+            assert_eq!(token.unwrap().ttype, expected[i]);
         }
     }
 }
-*/

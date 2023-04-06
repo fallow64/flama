@@ -1,0 +1,12 @@
+using the `let` keyword will define a lexically-scoped variable
+
+special variable named `$fc` made by compiler
+when making a new variable with `let`, it names the variable `%var($fc)_{name}`
+at the start of the block, it increases `$fc` (after setting all of the arguments)
+at the end of the block, it first purges all variables that match the value of $fc
+then we decrement it
+
+pitfalls: variable with the value of `$fc` already in the name.
+how to avoid: maybe make the mangling `FC\%var($fc)_{name}` because \ is invalid in var names
+
+using `global`, `local`, or `save` keyword will bypass all of these rules and just directly uses the variable with no mangling

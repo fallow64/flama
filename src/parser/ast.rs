@@ -86,7 +86,7 @@ pub struct AssignExpr {
 pub struct GetExpr {
     pub init: Token,
     pub object: Expression,
-    pub name: Token,
+    pub name: Identifier,
     pub typ: Option<Type>,
 }
 
@@ -94,7 +94,7 @@ pub struct GetExpr {
 pub struct SetExpr {
     pub init: Token,
     pub object: Expression,
-    pub name: Token,
+    pub name: Identifier,
     pub value: Expression,
     pub typ: Option<Type>,
 }
@@ -123,7 +123,7 @@ pub struct BlockStmt {
 #[derive(Debug, Clone)]
 pub struct PrintStmt {
     pub init: Token,
-    pub values: Vec<Expression>,
+    pub value: Expression,
 }
 
 #[derive(Debug, Clone)]
@@ -273,6 +273,7 @@ impl Display for TypeExpression {
 // ------------------------ IMPLS --------------------------
 
 impl Expression {
+    #[allow(dead_code)]
     pub fn get_type(&self) -> Option<Type> {
         match self {
             Expression::Unary(expr) => expr.borrow().typ.clone(),

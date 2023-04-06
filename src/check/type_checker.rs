@@ -21,7 +21,7 @@ use crate::{
 pub struct TypeChecker {
     environment: Environment<String, Type>,
     source_path: Rc<PathBuf>,
-    return_type: Option<Type>,
+    return_type: Type,
 }
 
 impl Visitor for TypeChecker {
@@ -70,14 +70,14 @@ impl Visitor for TypeChecker {
                 if a == b {
                     Ok(Type::Boolean)
                 } else {
-                    Err(self.expected_error(a, b, expr.borrow().init.span))
+                    Err(self.expected_error(&a, &b, expr.borrow().init.span))
                 }
             }
             (BinaryOperator::NotEq, a, b) => {
                 if a == b {
                     Ok(Type::Boolean)
                 } else {
-                    Err(self.expected_error(a, b, expr.borrow().init.span))
+                    Err(self.expected_error(&a, &b, expr.borrow().init.span))
                 }
             }
             (BinaryOperator::Less, Type::Number, Type::Number) => Ok(Type::Boolean),
@@ -91,7 +91,7 @@ impl Visitor for TypeChecker {
                 if a == b {
                     Ok(a)
                 } else {
-                    Err(self.expected_error(a, b, expr.borrow().init.span))
+                    Err(self.expected_error(&a, &b, expr.borrow().init.span))
                 }
             }
             (op, typ1, typ2) => Err(self.error(
@@ -135,9 +135,10 @@ impl Visitor for TypeChecker {
             }
 
             if args.len() != signature.params.len() {
-                return Err(self.expected_error(
-                    Type::Function(Box::new(FunctionSignature::default())),
-                    Type::Function(signature),
+                return Err(self.arity_error(
+                    &signature.name.name,
+                    signature.params.len(),
+                    args.len(),
                     expr.borrow().init.span,
                 ));
             }
@@ -145,19 +146,15 @@ impl Visitor for TypeChecker {
             for (i, arg) in args.iter().enumerate() {
                 let expected_type = &signature.params[i].type_annotation.typ;
                 if arg != expected_type {
-                    return Err(self.expected_error(
-                        expected_type.clone(),
-                        arg.clone(),
-                        expr.borrow().init.span,
-                    ));
+                    return Err(self.expected_error(&expected_type, &arg, expr.borrow().init.span));
                 }
             }
 
             Ok(signature.return_type.map_or(Type::Void, |rt| rt.typ))
         } else {
             Err(self.expected_error(
-                Type::Function(Box::new(FunctionSignature::default())),
-                callee_type,
+                &Type::Function(Box::new(FunctionSignature::default())),
+                &callee_type,
                 expr.borrow().init.span,
             ))
         }
@@ -181,13 +178,16 @@ impl Visitor for TypeChecker {
         if var_type == &value_type {
             Ok(value_type)
         } else {
-            Err(self.expected_error(var_type.clone(), value_type, expr.borrow().init.span))
+            Err(self.expected_error(var_type, &value_type, expr.borrow().init.span))
         }
     }
 
-    fn visit_get_expr(&mut self, _expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        // let object_type = expr.borrow().object.accept(self)?;
-        todo!()
+    fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+        let object_type = expr.borrow().object.accept(self)?;
+        match object_type {
+            Type::Vector => Ok(Type::Number),
+            _ => Err(self.expected_error(&Type::Vector, &object_type, expr.borrow().init.span)),
+        }
     }
 
     fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -208,10 +208,8 @@ impl Visitor for TypeChecker {
 
     fn visit_print_stmt(&mut self, stmt: NodePtr<PrintStmt>) -> FlamaResult<Self::StatementOutput> {
         // any types allowed in print stmt
-        for value in &stmt.borrow().values {
-            let typ = value.accept(self)?;
-            println!("{}", typ);
-        }
+        let typ = stmt.borrow().value.accept(self)?;
+        println!("{}", typ);
 
         Ok(())
     }
@@ -220,8 +218,8 @@ impl Visitor for TypeChecker {
         let condition_type = stmt.borrow().condition.accept(self)?;
         if !matches!(condition_type, Type::Boolean) {
             return Err(self.expected_error(
-                Type::Boolean,
-                condition_type,
+                &Type::Boolean,
+                &condition_type,
                 stmt.borrow().condition.span(),
             ));
         }
@@ -238,8 +236,8 @@ impl Visitor for TypeChecker {
         let condition_type = stmt.borrow().condition.accept(self)?;
         if !matches!(condition_type, Type::Boolean) {
             return Err(self.expected_error(
-                Type::Boolean,
-                condition_type,
+                &Type::Boolean,
+                &condition_type,
                 stmt.borrow().condition.span(),
             ));
         }
@@ -268,16 +266,16 @@ impl Visitor for TypeChecker {
         stmt: NodePtr<ReturnStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         let value_type = if let Some(value) = &stmt.borrow().value {
-            Some(value.accept(self)?)
+            value.accept(self)?
         } else {
-            None
+            Type::default()
         };
 
         if value_type != self.return_type {
-            return Err(self.expected_error_option(
-                self.return_type.as_ref(),
-                value_type.as_ref(),
-                stmt.borrow().value.as_ref().unwrap().span(),
+            return Err(self.expected_error(
+                &self.return_type,
+                &value_type,
+                stmt.borrow().init.span,
             ));
         }
 
@@ -298,8 +296,8 @@ impl Visitor for TypeChecker {
             (Some(type_annotation), Some(value_type)) => {
                 if type_annotation != value_type {
                     return Err(self.expected_error(
-                        type_annotation,
-                        value_type,
+                        &type_annotation,
+                        &value_type,
                         stmt.borrow().value.as_ref().unwrap().span(),
                     ));
                 } else {
@@ -340,7 +338,13 @@ impl Visitor for TypeChecker {
         // signature into scope already handled in Self::parse()
 
         self.environment.push();
-        self.return_type = decl.borrow().signature.return_type.clone().map(|te| te.typ);
+        self.return_type = decl
+            .borrow()
+            .signature
+            .return_type
+            .clone()
+            .map(|te| te.typ)
+            .unwrap_or(Type::default());
 
         for param in &decl.borrow().signature.params {
             self.environment
@@ -350,7 +354,7 @@ impl Visitor for TypeChecker {
         for stmt in &decl.borrow().stmts {
             stmt.accept(self)?;
         }
-        self.return_type = None;
+        self.return_type = Type::default();
         self.environment.pop();
 
         Ok(())
@@ -363,8 +367,8 @@ impl Visitor for TypeChecker {
         if let Some(type_annotation) = type_annotation {
             if type_annotation != value_type {
                 return Err(self.expected_error(
-                    type_annotation,
-                    value_type,
+                    &type_annotation,
+                    &value_type,
                     decl.borrow().init.span,
                 ));
             }
@@ -382,7 +386,7 @@ impl TypeChecker {
         Self {
             environment: Environment::new(),
             source_path,
-            return_type: None,
+            return_type: Type::default(),
         }
     }
 
@@ -419,25 +423,9 @@ impl TypeChecker {
         }
     }
 
-    fn expected_error(&self, expected: Type, actual: Type, span: Span) -> FlamaError {
+    fn expected_error(&self, expected: &Type, actual: &Type, span: Span) -> FlamaError {
         self.error(
             format!("expected type {}, but got type {}", expected, actual),
-            span,
-        )
-    }
-
-    fn expected_error_option(
-        &self,
-        expected: Option<&Type>,
-        actual: Option<&Type>,
-        span: Span,
-    ) -> FlamaError {
-        self.error(
-            format!(
-                "expected type {}, but got type {}",
-                expected.unwrap_or(&Type::default()),
-                actual.unwrap_or(&Type::default())
-            ),
             span,
         )
     }
@@ -449,6 +437,22 @@ impl TypeChecker {
     fn cannot_infer_error(&self, variable: &String, span: Span) -> FlamaError {
         self.error(
             format!("cannot infer type for variable '{}'", variable),
+            span,
+        )
+    }
+
+    fn arity_error(
+        &self,
+        func_name: &String,
+        expected: usize,
+        actual: usize,
+        span: Span,
+    ) -> FlamaError {
+        self.error(
+            format!(
+                "expected {} arguments for function '{}', but got {}",
+                expected, func_name, actual
+            ),
             span,
         )
     }

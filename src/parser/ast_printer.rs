@@ -108,7 +108,7 @@ impl Visitor for Printer {
         Ok(format!(
             "{}.{}",
             expr.borrow().object.accept(self)?,
-            expr.borrow().name.lexeme
+            expr.borrow().name.name
         ))
     }
 
@@ -116,38 +116,19 @@ impl Visitor for Printer {
         Ok(format!(
             "{}.{} = {}",
             expr.borrow().object.accept(self)?,
-            expr.borrow().name.lexeme,
+            expr.borrow().name.name,
             expr.borrow().value.accept(self)?
         ))
     }
 
     fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
-        let mut output = String::from("{\n");
-        self.indent += 4;
-
-        for statement in &stmt.borrow().statements {
-            output.push_str(" ".repeat(self.indent).as_str());
-            output.push_str(&statement.accept(self)?);
-            output.push_str("\n");
-        }
-
-        self.indent -= 4;
-        output.push_str(" ".repeat(self.indent).as_str());
-        output.push_str("}");
-
-        Ok(output)
+        self.visit_multiple(&stmt.borrow().statements)
     }
 
     fn visit_print_stmt(&mut self, stmt: NodePtr<PrintStmt>) -> FlamaResult<Self::StatementOutput> {
-        let values = stmt
-            .borrow()
-            .values
-            .iter()
-            .map(|val| val.accept(self))
-            .collect::<FlamaResult<Vec<_>>>()?
-            .join(", ");
+        let value = stmt.borrow().value.accept(self)?;
 
-        Ok(format!("print({});", values))
+        Ok(format!("print {};", value))
     }
 
     fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput> {

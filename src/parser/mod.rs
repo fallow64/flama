@@ -11,9 +11,9 @@ use crate::{
 
 use self::ast::{
     new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
-    Expression, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, IfStmt, Item, LetStmt,
-    LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr, Statement, Type,
-    TypeExpression, UnaryExpr, VariableType, WhileStmt,
+    Expression, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, Item,
+    LetStmt, LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr, Statement,
+    Type, TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
@@ -239,13 +239,10 @@ impl Parser {
     /// `"print" <expr> ";"`
     fn parse_print_stmt(&mut self) -> FlamaResult<PrintStmt> {
         let init = self.consume(TokenType::Print)?;
-
-        self.consume(TokenType::LParen)?;
-        let values = self.get_arguments(TokenType::RParen)?;
-        self.consume(TokenType::RParen)?;
+        let value = self.parse_expression()?;
 
         self.consume(TokenType::SemiColon)?;
-        Ok(PrintStmt { init, values })
+        Ok(PrintStmt { init, value })
     }
 
     /// `"if" <expr> <block> ("else" <block>)?`
@@ -606,7 +603,8 @@ impl Parser {
         loop {
             if self.is_match(TokenType::Dot) {
                 let init = self.consume(TokenType::Dot)?;
-                let name = self.consume(TokenType::Identifier)?;
+                let name: Identifier = self.consume(TokenType::Identifier)?.into();
+
                 expr = Expression::Get(new_node_ptr(GetExpr {
                     init,
                     object: expr,
@@ -965,5 +963,17 @@ impl Iterator for Parser {
         } else {
             Some(self.parse_item())
         }
+    }
+}
+
+mod tests {
+    #[test]
+    fn test_unescape_string() {
+        assert_eq!(super::Parser::unescape_string("hello"), "hello");
+        assert_eq!(super::Parser::unescape_string("hello\\n"), "hello\n");
+        assert_eq!(
+            super::Parser::unescape_string("\\r \\t \\' \\\" \\\\ \\a"),
+            "\r \t \' \" \\ \\a"
+        );
     }
 }

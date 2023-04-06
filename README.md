@@ -15,6 +15,14 @@ There is also a downloadable executable in the [releases](https://www.github.com
 - Classes
 - First-class(ish) Functions
 
+### Cons
+
+- Not suitable for minigame development
+- Resulting code will be harder to read than hand-placing
+- The language is subject to change
+- The CodeUtils support is... iffy.
+- Items are a huge pain.
+
 ### TODO:
 
 - [ ] Compiler
