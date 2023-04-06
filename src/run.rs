@@ -4,10 +4,7 @@ use crate::{
     check,
     lexer::Lexer,
     logger,
-    parser::{
-        ast_printer::{self, Printer},
-        Parser,
-    },
+    parser::{ast_printer::Printer, Parser},
     FlamaResults,
 };
 
