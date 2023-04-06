@@ -12,8 +12,8 @@ use crate::{
 use self::ast::{
     new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
     Expression, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, Item,
-    LetStmt, LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr, Statement,
-    Type, TypeExpression, UnaryExpr, VariableType, WhileStmt,
+    LetStmt, ListExpr, LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr,
+    Statement, Type, TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
@@ -498,9 +498,9 @@ impl Parser {
     fn parse_relational(&mut self) -> FlamaResult<Expression> {
         let mut expr = self.parse_term()?;
         while self.is_matches(&[
-            TokenType::RArrow,
+            TokenType::Greater,
             TokenType::GreaterEq,
-            TokenType::LArrow,
+            TokenType::Less,
             TokenType::LessEq,
         ]) {
             let operator = self.advance().unwrap();
@@ -684,31 +684,14 @@ impl Parser {
                 }));
                 Ok(expr)
             }
-            TokenType::LArrow => {
-                let num1 = self
-                    .consume(TokenType::Number)?
-                    .lexeme
-                    .parse::<f64>()
-                    .unwrap();
-                self.consume(TokenType::Comma)?;
+            TokenType::LBracket => {
+                let elements = self.get_arguments(TokenType::RBracket)?;
 
-                let num2 = self
-                    .consume(TokenType::Number)?
-                    .lexeme
-                    .parse::<f64>()
-                    .unwrap();
-                self.consume(TokenType::Comma)?;
+                self.consume(TokenType::RBracket)?;
 
-                let num3 = self
-                    .consume(TokenType::Number)?
-                    .lexeme
-                    .parse::<f64>()
-                    .unwrap();
-                self.consume(TokenType::RArrow)?;
-
-                let expr = Expression::Literal(new_node_ptr(LiteralExpr {
+                let expr = Expression::List(new_node_ptr(ListExpr {
                     init,
-                    kind: (num1, num2, num3).into(),
+                    elements,
                     typ: None,
                 }));
 
@@ -721,37 +704,36 @@ impl Parser {
     // ------------------------- TYPE EXPRESSIONS -------------------------
 
     fn parse_type_expression(&mut self) -> FlamaResult<TypeExpression> {
-        if !self.is_matches(&[
-            TokenType::TypeNumber,
-            TokenType::TypeString,
-            TokenType::TypeBoolean,
-            TokenType::TypeVector,
-            TokenType::Identifier,
-        ]) {
-            return Err(self.make_error_expected(
-                &[
-                    TokenType::TypeNumber,
-                    TokenType::TypeString,
-                    TokenType::TypeBoolean,
-                    TokenType::TypeVector,
-                    TokenType::Identifier,
-                ],
-                self.current_token.as_ref().map(|tok| tok.ttype),
-            ));
-        }
+        let init = self
+            .advance()
+            .expect("called parse_type_expression(), but is at end");
 
-        let init = self.advance().unwrap();
-        Ok(TypeExpression {
-            typ: match init.ttype {
-                TokenType::TypeNumber => Type::Number,
-                TokenType::TypeString => Type::String,
-                TokenType::TypeBoolean => Type::Boolean,
-                TokenType::TypeVector => Type::Vector,
-                TokenType::Identifier => Type::Identifier(init.clone().into()),
-                _ => unreachable!(),
-            },
-            init,
-        })
+        let typ = match init.ttype {
+            TokenType::TypeNumber => Type::Number,
+            TokenType::TypeString => Type::String,
+            TokenType::TypeBoolean => Type::Boolean,
+            TokenType::TypeList => {
+                self.consume(TokenType::Less)?;
+                let inner = self.parse_type_expression()?;
+                self.consume(TokenType::Greater)?;
+                Type::List(Box::new(inner.typ))
+            }
+            TokenType::Identifier => Type::Identifier(init.clone().into()),
+            _ => {
+                return Err(self.make_error_expected(
+                    &[
+                        TokenType::TypeNumber,
+                        TokenType::TypeString,
+                        TokenType::TypeBoolean,
+                        TokenType::TypeList,
+                        TokenType::Identifier,
+                    ],
+                    self.current_token.as_ref().map(|tok| tok.ttype),
+                ))
+            }
+        };
+
+        Ok(TypeExpression { init, typ })
     }
 
     // ------------------------- HELPER FUNCTIONS -------------------------

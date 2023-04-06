@@ -28,6 +28,7 @@ pub enum Expression {
     Unary(NodePtr<UnaryExpr>),
     Binary(NodePtr<BinaryExpr>),
     Literal(NodePtr<LiteralExpr>),
+    List(NodePtr<ListExpr>),
     Name(NodePtr<NameExpr>),
     Call(NodePtr<CallExpr>),
     Assign(NodePtr<AssignExpr>),
@@ -56,6 +57,13 @@ pub struct BinaryExpr {
 pub struct LiteralExpr {
     pub init: Token,
     pub kind: LiteralKind,
+    pub typ: Option<Type>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ListExpr {
+    pub init: Token,
+    pub elements: Vec<Expression>,
     pub typ: Option<Type>,
 }
 
@@ -219,9 +227,11 @@ pub enum Type {
     Number,
     String,
     Boolean,
-    Vector,
+    List(Box<Type>),
     Identifier(Identifier),
     Function(Box<FunctionSignature>),
+
+    Any, // used for list inference
     #[default]
     Void,
 }
@@ -232,8 +242,13 @@ impl From<LiteralKind> for Type {
             LiteralKind::Number(_) => Type::Number,
             LiteralKind::String(_) => Type::String,
             LiteralKind::Boolean(_) => Type::Boolean,
-            LiteralKind::Vector(_, _, _) => Type::Vector,
         }
+    }
+}
+
+impl From<Identifier> for Type {
+    fn from(id: Identifier) -> Self {
+        Type::Identifier(id)
     }
 }
 
@@ -243,12 +258,12 @@ impl Display for Type {
             Type::Number => write!(f, "number"),
             Type::String => write!(f, "string"),
             Type::Boolean => write!(f, "boolean"),
-            Type::Vector => write!(f, "vector"),
+            Type::List(typ) => write!(f, "list<{}>", typ),
             Type::Identifier(id) => write!(f, "{}", id),
             Type::Function(sig) => {
                 write!(
                     f,
-                    "<fn({}) -> {}>",
+                    "fn<({}) -> {}>",
                     sig.params
                         .iter()
                         .map(|p| p.type_annotation.typ.to_string())
@@ -259,6 +274,7 @@ impl Display for Type {
                         .map_or(&Type::default(), |te| &te.typ)
                 )
             }
+            Type::Any => write!(f, "any"),
             Type::Void => write!(f, "void"),
         }
     }
@@ -279,6 +295,7 @@ impl Expression {
             Expression::Unary(expr) => expr.borrow().typ.clone(),
             Expression::Binary(expr) => expr.borrow().typ.clone(),
             Expression::Literal(literal) => literal.borrow().typ.clone(),
+            Expression::List(list) => list.borrow().typ.clone(),
             Expression::Name(expr) => expr.borrow().typ.clone(),
             Expression::Call(expr) => expr.borrow().typ.clone(),
             Expression::Assign(expr) => expr.borrow().typ.clone(),
@@ -294,6 +311,7 @@ impl Spanned for Expression {
             Expression::Unary(expr) => expr.borrow().init.span,
             Expression::Binary(expr) => expr.borrow().init.span,
             Expression::Literal(literal) => literal.borrow().init.span,
+            Expression::List(list) => list.borrow().init.span,
             Expression::Name(expr) => expr.borrow().init.span,
             Expression::Call(expr) => expr.borrow().init.span,
             Expression::Assign(expr) => expr.borrow().init.span,
@@ -411,7 +429,6 @@ pub enum LiteralKind {
     Number(f64),
     String(String),
     Boolean(bool),
-    Vector(f64, f64, f64),
 }
 
 impl Display for LiteralKind {
@@ -420,7 +437,6 @@ impl Display for LiteralKind {
             LiteralKind::Number(n) => write!(f, "{}", n),
             LiteralKind::String(s) => write!(f, "\"{}\"", s),
             LiteralKind::Boolean(b) => write!(f, "{}", b),
-            LiteralKind::Vector(x, y, z) => write!(f, "<{}, {}, {}>", x, y, z),
         }
     }
 }
@@ -440,12 +456,6 @@ impl From<String> for LiteralKind {
 impl From<bool> for LiteralKind {
     fn from(value: bool) -> Self {
         LiteralKind::Boolean(value)
-    }
-}
-
-impl From<(f64, f64, f64)> for LiteralKind {
-    fn from(value: (f64, f64, f64)) -> Self {
-        LiteralKind::Vector(value.0, value.1, value.2)
     }
 }
 

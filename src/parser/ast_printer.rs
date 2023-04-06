@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    ast::{ConstItem, Statement},
+    ast::{ConstItem, ListExpr, Statement},
     visitor::ItemVisitable,
 };
 
@@ -71,6 +71,18 @@ impl Visitor for Printer {
         expr: NodePtr<LiteralExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(expr.borrow().kind.to_string())
+    }
+
+    fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
+        let elements = expr
+            .borrow()
+            .elements
+            .iter()
+            .map(|element| element.accept(self))
+            .collect::<FlamaResult<Vec<_>>>()?
+            .join(", ");
+
+        Ok(format!("[{}]", elements))
     }
 
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {

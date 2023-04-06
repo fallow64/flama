@@ -50,8 +50,8 @@ impl Lexer {
                 }
             }),
             '!' => Ok(self.if_char_else('=', TokenType::NotEq, TokenType::Not)),
-            '>' => Ok(self.if_char_else('=', TokenType::GreaterEq, TokenType::RArrow)),
-            '<' => Ok(self.if_char_else('=', TokenType::LessEq, TokenType::LArrow)),
+            '>' => Ok(self.if_char_else('=', TokenType::GreaterEq, TokenType::Greater)),
+            '<' => Ok(self.if_char_else('=', TokenType::LessEq, TokenType::Less)),
             '|' if self.is_match('|') => Ok(self.make_spanned(TokenType::Or)),
             '&' if self.is_match('&') => Ok(self.make_spanned(TokenType::And)),
             // etc (assign and arrow above)
@@ -254,7 +254,7 @@ mod tests {
         let source = r#"
             () {} [] + - * / % ! == != > >= < <= || && = -> => . , : ; ...
             event fn let save local game if else for while continue break return true false print const
-            num string bool vector this_is_an_identifier "this_is_a_string" 1234 3.1415926
+            num string bool this_is_an_identifier "this_is_a_string" 1234 3.1415926
         "#;
 
         let expected = vec![
@@ -272,9 +272,9 @@ mod tests {
             TokenType::Not,
             TokenType::Equals,
             TokenType::NotEq,
-            TokenType::RArrow,
+            TokenType::Greater,
             TokenType::GreaterEq,
-            TokenType::LArrow,
+            TokenType::Less,
             TokenType::LessEq,
             TokenType::Or,
             TokenType::And,
@@ -306,7 +306,6 @@ mod tests {
             TokenType::TypeNumber,
             TokenType::TypeString,
             TokenType::TypeBoolean,
-            TokenType::TypeVector,
             TokenType::Identifier,
             TokenType::String,
             TokenType::Number,

@@ -2,8 +2,9 @@ use crate::FlamaResult;
 
 use super::ast::{
     AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
-    Expression, ExpressionStmt, FunctionItem, GetExpr, IfStmt, Item, LetStmt, LiteralExpr,
-    NameExpr, NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr, WhileStmt,
+    Expression, ExpressionStmt, FunctionItem, GetExpr, IfStmt, Item, LetStmt, ListExpr,
+    LiteralExpr, NameExpr, NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr,
+    WhileStmt,
 };
 
 pub trait Visitor {
@@ -21,6 +22,7 @@ pub trait Visitor {
         &mut self,
         expr: NodePtr<LiteralExpr>,
     ) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_assign_expr(
@@ -73,6 +75,7 @@ impl ExpressionVisitable for Expression {
             Expression::Unary(expr) => visitor.visit_unary_expr(expr.clone()),
             Expression::Binary(expr) => visitor.visit_binary_expr(expr.clone()),
             Expression::Literal(expr) => visitor.visit_literal_expr(expr.clone()),
+            Expression::List(expr) => visitor.visit_list_expr(expr.clone()),
             Expression::Name(expr) => visitor.visit_name_expr(expr.clone()),
             Expression::Call(expr) => visitor.visit_call_expr(expr.clone()),
             Expression::Assign(expr) => visitor.visit_assign_expr(expr.clone()),
@@ -143,6 +146,12 @@ impl ExpressionVisitable for NodePtr<BinaryExpr> {
 impl ExpressionVisitable for NodePtr<LiteralExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_literal_expr(self.clone())
+    }
+}
+
+impl ExpressionVisitable for NodePtr<ListExpr> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
+        visitor.visit_list_expr(self.clone())
     }
 }
 

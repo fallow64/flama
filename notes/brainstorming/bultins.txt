@@ -1,0 +1,22 @@
+Methods for builtin types: (e.g. list.push() or something)
+
+Define a `Builtin` trait that has the following methods:
+```
+fn get_name() -> &str;
+fn can_act(base_type: &Type) -> bool;
+fn get_return_type(base_type: Option<&Type>) -> Type;
+fn compile(compiler: &mut Compiler>, object: Option<Expression>, arguments: Vec<Expression>);
+```
+
+`get_name` gets the name (e.g. `push` or `pop` or `print`)
+
+`can_act` takes in the base type (e.g. `list<num>`) and returns whether or not it is valid
+    note: only applies to methods. if you want something like `print()` to never be able
+    to be used as a method, then you just always return false
+
+`get_return_type` takes in the optional base type and returns the type of what the builtin returns.
+    note: this method applies for both methods and functions, hence the option
+
+`compile` takes in the compiler, optional base object, and arguments, and then generated the codeblocks.
+    note: the duty of evaluation the expressions is given to the compile, so technically it would be
+    possible to make some sort of macro system. perchance???

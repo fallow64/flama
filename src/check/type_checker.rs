@@ -7,8 +7,8 @@ use crate::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ConstItem,
             ContinueStmt, EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr,
-            IfStmt, LetStmt, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt,
-            SetExpr, Type, UnaryExpr, UnaryOperator, WhileStmt,
+            IfStmt, LetStmt, ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program,
+            ReturnStmt, SetExpr, Type, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -58,12 +58,8 @@ impl Visitor for TypeChecker {
             (BinaryOperator::Add, Type::String, Type::String) => Ok(Type::String),
             (BinaryOperator::Add, Type::String, Type::Number) => Ok(Type::String),
             (BinaryOperator::Add, Type::Number, Type::String) => Ok(Type::String),
-            (BinaryOperator::Add, Type::Vector, Type::Vector) => Ok(Type::Vector),
             (BinaryOperator::Subtract, Type::Number, Type::Number) => Ok(Type::Number),
-            (BinaryOperator::Subtract, Type::Vector, Type::Vector) => Ok(Type::Vector),
             (BinaryOperator::Multiply, Type::Number, Type::Number) => Ok(Type::Number),
-            (BinaryOperator::Multiply, Type::Vector, Type::Number) => Ok(Type::Number),
-            (BinaryOperator::Multiply, Type::Number, Type::Vector) => Ok(Type::Number),
             (BinaryOperator::Divide, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Modulo, Type::Number, Type::Number) => Ok(Type::Number),
             (BinaryOperator::Equals, a, b) => {
@@ -112,6 +108,30 @@ impl Visitor for TypeChecker {
 
         expr.borrow_mut().typ = Some(typ.clone());
         Ok(typ)
+    }
+
+    fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
+        if expr.borrow().elements.is_empty() {
+            Ok(Type::List(Box::new(Type::Any)))
+        } else {
+            let first_type = expr.borrow().elements[0].accept(self)?;
+
+            for element in expr.borrow().elements[1..].iter() {
+                let element_type = element.accept(self)?;
+
+                if first_type != element_type {
+                    return Err(self.error(
+                        format!(
+                            "expected list element to be of type {}, but got {}",
+                            first_type, element_type
+                        ),
+                        element.span(),
+                    ));
+                }
+            }
+
+            Ok(Type::List(Box::new(first_type)))
+        }
     }
 
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -183,11 +203,8 @@ impl Visitor for TypeChecker {
     }
 
     fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        let object_type = expr.borrow().object.accept(self)?;
-        match object_type {
-            Type::Vector => Ok(Type::Number),
-            _ => Err(self.expected_error(&Type::Vector, &object_type, expr.borrow().init.span)),
-        }
+        let _object_type = expr.borrow().object.accept(self)?;
+        todo!()
     }
 
     fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
