@@ -9,6 +9,7 @@ pub enum Type {
     Boolean,
     List(Box<Type>),
     Identifier(Identifier),
+    Struct(StructType),
     Function(Box<FunctionSignature>),
 
     Any, // used for list inference
@@ -40,6 +41,7 @@ impl Display for Type {
             Type::Boolean => write!(f, "boolean"),
             Type::List(typ) => write!(f, "list<{}>", typ),
             Type::Identifier(id) => write!(f, "{}", id),
+            Type::Struct(_) => write!(f, "struct"),
             Type::Function(sig) => {
                 write!(
                     f,
@@ -59,3 +61,6 @@ impl Display for Type {
         }
     }
 }
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct StructType {}

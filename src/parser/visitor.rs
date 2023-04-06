@@ -1,10 +1,9 @@
 use crate::FlamaResult;
 
 use super::ast::{
-    AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
-    Expression, ExpressionStmt, FunctionItem, GetExpr, IfStmt, Item, LetStmt, ListExpr,
-    LiteralExpr, NameExpr, NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr,
-    WhileStmt,
+    AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
+    ExpressionStmt, FunctionItem, GetExpr, IfStmt, Item, LetStmt, ListExpr, LiteralExpr, NameExpr,
+    NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, UnaryExpr, WhileStmt,
 };
 
 pub trait Visitor {
@@ -54,7 +53,6 @@ pub trait Visitor {
     fn visit_event_item(&mut self, decl: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput>;
     fn visit_function_item(&mut self, decl: NodePtr<FunctionItem>)
         -> FlamaResult<Self::ItemOutput>;
-    fn visit_const_item(&mut self, decl: NodePtr<ConstItem>) -> FlamaResult<Self::ItemOutput>;
 }
 
 pub trait ExpressionVisitable {
@@ -118,7 +116,6 @@ impl ItemVisitable for Item {
         match self {
             Item::Event(item) => visitor.visit_event_item(item.clone()),
             Item::Function(item) => visitor.visit_function_item(item.clone()),
-            Item::Constant(item) => visitor.visit_const_item(item.clone()),
         }
     }
 }
@@ -248,11 +245,5 @@ impl ItemVisitable for NodePtr<EventItem> {
 impl ItemVisitable for NodePtr<FunctionItem> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         visitor.visit_function_item(self.clone())
-    }
-}
-
-impl ItemVisitable for NodePtr<ConstItem> {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
-        visitor.visit_const_item(self.clone())
     }
 }

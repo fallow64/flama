@@ -4,17 +4,13 @@ use crate::{
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem,
-            ExpressionStmt, FunctionItem, GetExpr, IfStmt, LetStmt, LiteralExpr, NameExpr, NodePtr,
-            PrintStmt, Program, ReturnStmt, SetExpr, UnaryExpr, WhileStmt,
+            ExpressionStmt, FunctionItem, GetExpr, IfStmt, LetStmt, ListExpr, LiteralExpr,
+            NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr, Statement, UnaryExpr,
+            WhileStmt,
         },
-        visitor::{ExpressionVisitable, StatementVisitable, Visitor},
+        visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
     FlamaResult, FlamaResults,
-};
-
-use super::{
-    ast::{ConstItem, ListExpr, Statement},
-    visitor::ItemVisitable,
 };
 
 pub fn print(program: Rc<Program>) -> FlamaResults<()> {
@@ -230,20 +226,6 @@ impl Visitor for Printer {
             "fn {} {}",
             item.borrow().signature.name.name,
             self.visit_multiple(&item.borrow().stmts)?
-        ))
-    }
-
-    fn visit_const_item(&mut self, item: NodePtr<ConstItem>) -> FlamaResult<Self::ItemOutput> {
-        let type_annotation = match &item.borrow().type_annotation {
-            Some(type_annotation) => format!(": {}", type_annotation.to_string()),
-            None => "".to_string(),
-        };
-
-        Ok(format!(
-            "const {}{} = {}",
-            item.borrow().name.name,
-            type_annotation,
-            item.borrow().value.accept(self)?
         ))
     }
 }

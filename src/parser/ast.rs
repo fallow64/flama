@@ -188,7 +188,6 @@ pub struct ExpressionStmt {
 pub enum Item {
     Event(NodePtr<EventItem>),
     Function(NodePtr<FunctionItem>),
-    Constant(NodePtr<ConstItem>),
 }
 
 #[derive(Debug, Clone)]
@@ -203,14 +202,6 @@ pub struct FunctionItem {
     pub init: Token,
     pub stmts: Vec<Statement>,
     pub signature: FunctionSignature,
-}
-
-#[derive(Debug, Clone)]
-pub struct ConstItem {
-    pub init: Token,
-    pub name: Identifier,
-    pub type_annotation: Option<TypeExpression>,
-    pub value: Expression,
 }
 
 // ------------------------- TYPED EXPRESSIONS -------------------------
@@ -287,7 +278,6 @@ impl Spanned for Item {
         match self {
             Item::Event(sect) => sect.borrow().init.span,
             Item::Function(sect) => sect.borrow().init.span,
-            Item::Constant(sect) => sect.borrow().init.span,
         }
     }
 }

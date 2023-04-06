@@ -5,10 +5,10 @@ use crate::{
     lexer::token::{Span, Spanned},
     parser::{
         ast::{
-            AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ConstItem,
-            ContinueStmt, EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr,
-            IfStmt, LetStmt, ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program,
-            ReturnStmt, SetExpr, UnaryExpr, UnaryOperator, WhileStmt,
+            AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
+            EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, IfStmt, LetStmt,
+            ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr,
+            UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -373,26 +373,6 @@ impl Visitor for TypeChecker {
         }
         self.return_type = Type::default();
         self.environment.pop();
-
-        Ok(())
-    }
-
-    fn visit_const_item(&mut self, decl: NodePtr<ConstItem>) -> FlamaResult<Self::ItemOutput> {
-        let type_annotation = decl.borrow().type_annotation.clone().map(|t| t.typ);
-
-        let value_type = decl.borrow().value.accept(self)?;
-        if let Some(type_annotation) = type_annotation {
-            if type_annotation != value_type {
-                return Err(self.expected_error(
-                    &type_annotation,
-                    &value_type,
-                    decl.borrow().init.span,
-                ));
-            }
-        }
-
-        self.environment
-            .define(decl.borrow().name.name.clone(), value_type);
 
         Ok(())
     }

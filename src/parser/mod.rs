@@ -11,10 +11,10 @@ use crate::{
 };
 
 use self::ast::{
-    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ConstItem, ContinueStmt, EventItem,
-    Expression, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, Item,
-    LetStmt, ListExpr, LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr,
-    Statement, TypeExpression, UnaryExpr, VariableType, WhileStmt,
+    new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
+    ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, Item, LetStmt,
+    ListExpr, LiteralExpr, NameExpr, Parameter, PrintStmt, Program, ReturnStmt, SetExpr, Statement,
+    TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
@@ -96,10 +96,6 @@ impl Parser {
                 Ok(function) => return Ok(Item::Function(new_node_ptr(function))),
                 Err(err) => err,
             },
-            TokenType::Const => match self.parse_const_item() {
-                Ok(constant) => return Ok(Item::Constant(new_node_ptr(constant))),
-                Err(err) => err,
-            },
             _ => self
                 .consume_multiple(&[TokenType::Event, TokenType::Function])
                 .expect_err("update consume_multiple()"),
@@ -157,29 +153,6 @@ impl Parser {
                 params,
                 return_type,
             },
-        })
-    }
-
-    fn parse_const_item(&mut self) -> FlamaResult<ConstItem> {
-        let init = self.consume(TokenType::Const)?;
-        let name = self.consume(TokenType::Identifier)?.into();
-
-        let type_annotation = if self.is_match(TokenType::Colon) {
-            self.advance();
-            Some(self.parse_type_expression()?)
-        } else {
-            None
-        };
-
-        self.consume(TokenType::Assign)?;
-        let value = self.parse_expression()?;
-        self.consume(TokenType::SemiColon)?;
-
-        Ok(ConstItem {
-            init,
-            type_annotation,
-            name,
-            value,
         })
     }
 
