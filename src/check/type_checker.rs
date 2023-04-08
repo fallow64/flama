@@ -15,6 +15,9 @@ use crate::{
     ErrorType, FlamaError, FlamaResult, FlamaResults,
 };
 
+// note: this file is littered with `clone()` calls, which is not ideal, but quite frankly I don't wanna deal with it right now
+// also, Type::Identifier really messes with this
+
 /// The type checker.
 ///
 /// The type checker is responsible for checking and inferring the types of expressions and statements.
@@ -160,13 +163,13 @@ impl Visitor for TypeChecker {
         &mut self,
         expr: NodePtr<InstanciateExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
-        let struct_name = expr.borrow().name.clone();
+        let inst_name = expr.borrow().name.clone();
 
         // for the purpose of this function, struct fields will be referred to as params, and the instanciation fields are just fields
-        let params = match self.typedefs.get(&struct_name.name) {
-            Some(Type::Struct(params)) => params,
+        let params = match self.typedefs.get(&inst_name.name) {
+            Some(Type::Struct(_, params)) => params,
             Some(_) => panic!("non-struct type in typedefs, update this"),
-            None => return Err(self.undefined_type_error(&struct_name.name, struct_name.span)),
+            None => return Err(self.undefined_type_error(&inst_name.name, inst_name.span)),
         }
         .clone();
 
@@ -182,9 +185,9 @@ impl Visitor for TypeChecker {
                 return Err(self.error(
                     format!(
                         "expected field '{}' to be defined in instanciation of struct '{}'",
-                        param_name, struct_name.name
+                        param_name, inst_name.name
                     ),
-                    struct_name.span,
+                    inst_name.span,
                 ));
             }
         }
@@ -195,9 +198,9 @@ impl Visitor for TypeChecker {
                 return Err(self.error(
                     format!(
                         "expected field '{}' to be defined in instanciation of struct '{}'",
-                        field_name, struct_name.name
+                        field_name, inst_name.name
                     ),
-                    struct_name.span,
+                    inst_name.span,
                 ));
             }
 
@@ -210,8 +213,8 @@ impl Visitor for TypeChecker {
             }
         }
 
-        expr.borrow_mut().typ = Some(Type::Struct(params.clone()));
-        Ok(Type::Struct(params))
+        expr.borrow_mut().typ = Some(self.typedefs.get(&inst_name.name).cloned().unwrap());
+        Ok(self.typedefs.get(&inst_name.name).cloned().unwrap())
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -232,14 +235,18 @@ impl Visitor for TypeChecker {
                 ));
             }
 
-            for (i, arg) in args.iter().enumerate() {
-                let expected_type = &signature.params[i].1.typ;
+            for (i, arg) in args.into_iter().enumerate() {
+                let expected_type = self.type_identifier_to(signature.params[i].1.typ.clone())?;
                 if arg != expected_type {
                     return Err(self.expected_error(&expected_type, &arg, expr.borrow().init.span));
                 }
             }
 
-            Ok(signature.return_type.map_or(Type::Void, |rt| rt.typ))
+            let typ =
+                self.type_identifier_to(signature.return_type.map_or(Type::Void, |rt| rt.typ))?;
+
+            expr.borrow_mut().typ = Some(typ.clone());
+            Ok(typ)
         } else {
             Err(self.expected_error(
                 &Type::Function(Box::new(FunctionSignature::default())),
@@ -254,11 +261,11 @@ impl Visitor for TypeChecker {
         expr: NodePtr<AssignExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let value_type = expr.borrow().value.accept(self)?;
-        let var_type = self.environment.get(&expr.borrow().name.lexeme);
+        let var_type = self.environment.get(&expr.borrow().name.name);
 
         if var_type.is_none() {
             return Err(
-                self.undefined_variable_error(&expr.borrow().name.lexeme, expr.borrow().name.span)
+                self.undefined_variable_error(&expr.borrow().name.name, expr.borrow().name.span)
             );
         }
 
@@ -272,8 +279,36 @@ impl Visitor for TypeChecker {
     }
 
     fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        let _object_type = expr.borrow().object.accept(self)?;
-        todo!()
+        let object_type = expr.borrow().object.accept(self)?;
+
+        let typ = match object_type {
+            Type::Struct(_, fields) => {
+                let field_name = expr.borrow().name.name.clone();
+                let field_type = fields.get(&field_name);
+
+                if field_type.is_none() {
+                    return Err(self.error(
+                        format!(
+                            "struct '{}' has no field '{}'",
+                            expr.borrow().typ.as_ref().unwrap(),
+                            field_name
+                        ),
+                        expr.borrow().init.span,
+                    ));
+                }
+
+                field_type.unwrap().clone()
+            }
+            _ => {
+                return Err(self.error(
+                    format!("'{}' is not a struct", dbg!(object_type)),
+                    expr.borrow().init.span,
+                ))
+            }
+        };
+
+        expr.borrow_mut().typ = Some(*typ.clone());
+        Ok(*typ)
     }
 
     fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -424,17 +459,20 @@ impl Visitor for TypeChecker {
         // signature into scope already handled in Self::parse()
 
         self.environment.push();
-        self.return_type = decl
+        let typ = decl
             .borrow()
             .signature
             .return_type
             .clone()
             .map(|te| te.typ)
             .unwrap_or(Type::default());
+        self.return_type = self.type_identifier_to(typ)?;
 
         for param in &decl.borrow().signature.params {
-            self.environment
-                .define(param.0.name.clone(), param.1.typ.clone());
+            self.environment.define(
+                param.0.name.clone(),
+                self.type_identifier_to(param.1.typ.clone())?,
+            );
         }
 
         for stmt in &decl.borrow().stmts {
@@ -447,7 +485,6 @@ impl Visitor for TypeChecker {
     }
 
     fn visit_struct_item(&mut self, _decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput> {
-        // typedefs handled in Self::check()
         Ok(())
     }
 }
@@ -464,6 +501,7 @@ impl TypeChecker {
 
     pub fn check(program: Rc<Program>, source_path: Rc<PathBuf>) -> FlamaResults<()> {
         let mut type_checker = TypeChecker::new(source_path);
+        let mut errs = vec![];
 
         for signature in &program.signatures {
             type_checker.environment.define(
@@ -473,20 +511,35 @@ impl TypeChecker {
         }
 
         for strukt in &program.typedefs {
-            // TODO: clean this up, mayb enot BTreeMaps?
+            // TODO: clean this up, maybe not BTreeMaps?
             let map = strukt
                 .borrow()
                 .fields
                 .iter()
-                .map(|field| (field.0.name.clone(), Box::new(field.1.typ.clone())))
+                .map(|field| match field.1.typ {
+                    // the parser does not know about previous typedefs, so we need to look them up.
+                    Type::Identifier(ref ident) => (
+                        field.0.name.clone(),
+                        Box::new(match type_checker.typedefs.get(&ident.name) {
+                            Some(t) => t.clone(),
+                            None => {
+                                errs.push(
+                                    type_checker.undefined_type_error(&ident.name, ident.span),
+                                );
+                                Type::None
+                            }
+                        }),
+                    ),
+                    _ => (field.0.name.clone(), Box::new(field.1.typ.clone())),
+                })
                 .collect::<BTreeMap<String, Box<Type>>>();
 
-            type_checker
-                .typedefs
-                .define(strukt.borrow().name.name.clone(), Type::Struct(map))
+            type_checker.typedefs.define(
+                strukt.borrow().name.name.clone(),
+                Type::Struct(strukt.borrow().name.name.clone(), map),
+            )
         }
 
-        let mut errs = vec![];
         for item in &program.items {
             if let Err(err) = item.accept(&mut type_checker) {
                 errs.push(err);
@@ -497,6 +550,17 @@ impl TypeChecker {
             Ok(())
         } else {
             Err(errs)
+        }
+    }
+
+    fn type_identifier_to(&self, typ: Type) -> FlamaResult<Type> {
+        if let Type::Identifier(ident) = typ {
+            match self.typedefs.get(&ident.name) {
+                Some(t) => Ok(t.clone()),
+                None => Err(self.undefined_type_error(&ident.name, ident.span)),
+            }
+        } else {
+            panic!("type_identifier_to called on non-identifier type")
         }
     }
 
@@ -511,7 +575,7 @@ impl TypeChecker {
 
     fn expected_error(&self, expected: &Type, actual: &Type, span: Span) -> FlamaError {
         self.error(
-            format!("expected type {}, but got type {}", expected, actual),
+            format!("expected type '{}', but got type '{}'", expected, actual),
             span,
         )
     }

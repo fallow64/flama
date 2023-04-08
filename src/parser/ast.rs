@@ -98,7 +98,7 @@ pub struct CallExpr {
 #[derive(Debug, Clone)]
 pub struct AssignExpr {
     pub init: Token,
-    pub name: Token,
+    pub name: Identifier,
     pub value: Expression,
     pub typ: Option<Type>,
 }

@@ -8,13 +8,18 @@ pub enum Type {
     String,
     Boolean,
     List(Box<Type>),
+    /// Intermediary between parser and type checker. Not to actually be used in the AST.   
     Identifier(Identifier),
     Function(Box<FunctionSignature>),
-    Struct(BTreeMap<String, Box<Type>>),
+    Struct(String, BTreeMap<String, Box<Type>>),
 
-    Any, // used for list inference
+    /// Used for list inference
+    Any,
     #[default]
+    /// Used solely for function returns. This is a hack to allow functions to return nothing.
     Void,
+    /// Used as a temporary for when there is an error in type creation. TODO: delete?
+    None,
 }
 
 impl From<LiteralKind> for Type {
@@ -55,10 +60,11 @@ impl Display for Type {
                         .map_or(&Type::default(), |te| &te.typ)
                 )
             }
-            Type::Struct(fields) => {
+            Type::Struct(name, fields) => {
                 write!(
                     f,
-                    "custom<({})>",
+                    "<struct {}({})>",
+                    name,
                     fields
                         .iter()
                         .map(|(name, typ)| format!("{}: {}", name, typ))
@@ -68,6 +74,7 @@ impl Display for Type {
             }
             Type::Any => write!(f, "any"),
             Type::Void => write!(f, "void"),
+            Type::None => write!(f, "(error in type creation)"),
         }
     }
 }

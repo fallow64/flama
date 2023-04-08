@@ -113,7 +113,7 @@ impl Visitor for Printer {
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "{} = {}",
-            expr.borrow().name.lexeme,
+            expr.borrow().name.name,
             expr.borrow().value.accept(self)?
         ))
     }

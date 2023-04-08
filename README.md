@@ -31,5 +31,7 @@ There is also a downloadable executable in the [releases](https://www.github.com
 - [ ] Seperate modules into different crates (?)
 - [ ] Design system for lexically-scoped variables with recursion
 - [ ] Classes
+- [ ] Exponential Syntax
+- [ ] Lambdas / Closures
 
 <sup>it wouldn't be a programming language without a fire emoji in the readme</sup>

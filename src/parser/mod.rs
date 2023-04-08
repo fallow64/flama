@@ -168,10 +168,23 @@ impl Parser {
 
     fn parse_struct_item(&mut self) -> FlamaResult<StructItem> {
         let init = self.consume(TokenType::Struct)?;
-        let name = self.consume(TokenType::Identifier)?.into();
+        let name: Identifier = self.consume(TokenType::Identifier)?.into();
 
         self.consume(TokenType::LBrace)?;
         let fields = self.get_parameters(TokenType::RBrace)?;
+
+        for (field_name, field_type) in &fields {
+            // TODO: type aliases break this
+            if let Type::Identifier(field_type_name) = &field_type.typ {
+                if name.name == field_type_name.name {
+                    self.queued_errors.push(self.make_error(
+                        field_name.span,
+                        format!("struct '{}' cannot be self-referential", name.name),
+                    ));
+                }
+            }
+        }
+
         self.consume(TokenType::RBrace)?;
 
         Ok(StructItem { init, name, fields })
@@ -396,9 +409,9 @@ impl Parser {
             let rhs = self.parse_or()?;
 
             expr = match expr {
-                Expression::Name(n) => Expression::Assign(new_node_ptr(AssignExpr {
+                Expression::Name(name) => Expression::Assign(new_node_ptr(AssignExpr {
                     init: operator,
-                    name: n.borrow().init.clone(),
+                    name: name.borrow().name.clone().into(),
                     value: rhs,
                     typ: None,
                 })),
@@ -646,10 +659,7 @@ impl Parser {
             while !self.is_match(TokenType::RBrace) {
                 let name: Identifier = self.consume(TokenType::Identifier)?.into();
 
-                if fields
-                    .iter()
-                    .any(|(n, _)| dbg!(&n.name) == dbg!(&name.name))
-                {
+                if fields.iter().any(|(n, _)| &n.name == &name.name) {
                     self.queued_errors.push(
                         self.make_error(
                             name.span,
