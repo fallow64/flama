@@ -8,9 +8,9 @@ use crate::{
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
-            EventItem, Expression, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr,
-            LetStmt, ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt,
-            SetExpr, StructItem, UnaryExpr, UnaryOperator, WhileStmt,
+            EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt,
+            ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr,
+            StructItem, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -27,6 +27,7 @@ pub struct TypeChecker {
     typedefs: Environment<String, Type>,
     source_path: Rc<PathBuf>,
     return_type: Type,
+    looking_for_builtin: bool,
 }
 
 impl Visitor for TypeChecker {
@@ -152,18 +153,12 @@ impl Visitor for TypeChecker {
         let name = expr.borrow().name.clone();
         let value_type = self.environment.get(&name.name);
 
-        if let Some(builtin) = builtins::get_built_in(&name.name) {
-            let typ = Type::Builtin(builtin.get_name().to_string());
-            expr.borrow_mut().typ = Some(typ.clone());
-            Ok(typ)
-        } else {
-            match value_type {
-                Some(typ) => {
-                    expr.borrow_mut().typ = Some(typ.clone());
-                    Ok(typ.clone())
-                }
-                None => Err(self.undefined_variable_error(&name.name, name.span)),
+        match value_type {
+            Some(typ) => {
+                expr.borrow_mut().typ = Some(typ.clone());
+                Ok(typ.clone())
             }
+            None => Err(self.undefined_variable_error(&name.name, name.span)),
         }
     }
 
@@ -226,72 +221,83 @@ impl Visitor for TypeChecker {
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
+        self.looking_for_builtin = true;
         let callee_type = expr.borrow().callee.accept(self)?;
-        if let Type::Function(signature) = callee_type {
-            let mut args = Vec::new();
+        self.looking_for_builtin = false;
 
-            for arg in expr.borrow().args.iter() {
-                args.push(arg.accept(self)?);
-            }
+        let typ = match callee_type {
+            Type::Function(signature) => {
+                let mut args = Vec::new();
 
-            if args.len() != signature.params.len() {
-                return Err(self.arity_error(
-                    &signature.name.name,
-                    signature.params.len(),
-                    args.len(),
-                    expr.borrow().init.span,
-                ));
-            }
-
-            for (i, arg) in args.into_iter().enumerate() {
-                let expected_type = self.type_identifier_to(signature.params[i].1.typ.clone())?;
-                if arg != expected_type {
-                    return Err(self.expected_error(&expected_type, &arg, expr.borrow().init.span));
+                for arg in expr.borrow().args.iter() {
+                    args.push(arg.accept(self)?);
                 }
-            }
 
-            let typ =
-                self.type_identifier_to(signature.return_type.map_or(Type::Void, |rt| rt.typ))?;
+                if args.len() != signature.params.len() {
+                    return Err(self.arity_error(
+                        &signature.name.name,
+                        signature.params.len(),
+                        args.len(),
+                        expr.borrow().init.span,
+                    ));
+                }
 
-            expr.borrow_mut().typ = Some(typ.clone());
-            Ok(typ)
-        } else {
-            // first set to `typ` to avoid borrow checker issues
-            let typ = match &expr.borrow().callee {
-                Expression::Name(name) => {
-                    if let Some(builtin) = builtins::get_built_in(&name.borrow().name.name) {
-                        let mut args = Vec::new();
-                        for arg in expr.borrow().args.iter() {
-                            args.push(arg.accept(self)?);
-                        }
-
-                        match builtin.is_valid_args(&args) {
-                            Ok(_) => builtin.get_return_type(None),
-                            Err(message) => {
-                                return Err(self.error(message, expr.borrow().init.span))
-                            }
-                        }
-                    } else {
+                for (i, arg) in args.into_iter().enumerate() {
+                    let expected_type =
+                        self.type_identifier_to(signature.params[i].1.typ.clone())?;
+                    if arg != expected_type {
                         return Err(self.expected_error(
-                            &Type::Function(Box::default()),
-                            &callee_type,
+                            &expected_type,
+                            &arg,
                             expr.borrow().init.span,
                         ));
                     }
                 }
-                Expression::Get(_) => todo!(),
-                _ => {
-                    return Err(self.expected_error(
-                        &Type::Function(Box::default()),
-                        &callee_type,
-                        expr.borrow().init.span,
-                    ))
-                }
-            };
 
-            expr.borrow_mut().typ = Some(typ.clone());
-            Ok(typ)
-        }
+                self.type_identifier_to(signature.return_type.map_or(Type::Void, |rt| rt.typ))?
+            }
+            Type::BuiltIn(base_type, builtin_name) => {
+                let builtin = builtins::get_built_in(&builtin_name).unwrap();
+
+                let mut args = vec![];
+                if let Some(ref base_type) = base_type {
+                    if !builtin.can_act_on(Some(base_type)) {
+                        return Err(self.error(
+                            format!(
+                                "builtin '{}' cannot be called on type '{}'",
+                                builtin_name, base_type
+                            ),
+                            expr.borrow().init.span,
+                        ));
+                    }
+                } else if !builtin.can_act_on(None) {
+                    return Err(self.error(
+                        format!("builtin '{}' cannot be called on type 'void'", builtin_name),
+                        expr.borrow().init.span,
+                    ));
+                }
+
+                for arg in expr.borrow().args.iter() {
+                    args.push(arg.accept(self)?);
+                }
+
+                // it the match condition, convert builtin `base_type` from Option<Box<Type>> to Option<&Type>
+                match builtin.is_valid_args(base_type.as_deref(), &args) {
+                    Ok(_) => builtin.get_return_type(None),
+                    Err(message) => return Err(self.error(message, expr.borrow().init.span)),
+                }
+            }
+            _ => {
+                return Err(self.expected_error(
+                    &Type::Function(Box::default()),
+                    &callee_type,
+                    expr.borrow().init.span,
+                ))
+            }
+        };
+
+        expr.borrow_mut().typ = Some(typ.clone());
+        Ok(typ)
     }
 
     fn visit_assign_expr(
@@ -301,7 +307,9 @@ impl Visitor for TypeChecker {
         let value_type = expr.borrow().value.accept(self)?;
         let var_type = self.environment.get(&expr.borrow().name.name);
 
-        if var_type.is_none() {
+        // if the variable is not defined, we can't assign to it
+        // and if it's a built-in, we can't assign to it either (they're immutable)
+        if matches!(var_type, Some(Type::BuiltIn(_, _)) | None) {
             return Err(
                 self.undefined_variable_error(&expr.borrow().name.name, expr.borrow().name.span)
             );
@@ -338,10 +346,23 @@ impl Visitor for TypeChecker {
                 field_type.unwrap().clone()
             }
             _ => {
-                return Err(self.error(
-                    format!("'{}' is not a struct", dbg!(object_type)),
-                    expr.borrow().init.span,
-                ))
+                if self.looking_for_builtin {
+                    // dont check environment because normal builtins can be shadowed, but builtins that act on expressions cannot
+                    // e.g. `len` can be shadowed, but `some_list.len` cannot
+                    if let Some(builtin) = builtins::get_built_in(&expr.borrow().name.name) {
+                        Type::BuiltIn(Some(Box::new(object_type)), builtin.get_name().to_string())
+                    } else {
+                        return Err(self.error(
+                            format!("'{}' is not a struct", dbg!(object_type)),
+                            expr.borrow().init.span,
+                        ));
+                    }
+                } else {
+                    return Err(self.error(
+                        format!("'{}' is not a struct", dbg!(object_type)),
+                        expr.borrow().init.span,
+                    ));
+                }
             }
         };
 
@@ -534,12 +555,25 @@ impl TypeChecker {
             typedefs: Environment::new(),
             source_path,
             return_type: Type::default(),
+            looking_for_builtin: false,
         }
     }
 
     pub fn check(program: Rc<Program>, source_path: Rc<PathBuf>) -> FlamaResults<()> {
         let mut type_checker = TypeChecker::new(source_path);
         let mut errs = vec![];
+
+        // preliminary definitions
+
+        // builtins before signatures because we want to override them
+        for builtin in builtins::BUILT_INS.into_iter().filter(|bi| !bi.is_method()) {
+            // defined in the enrironment means that they can be shadowed,
+            // but this is overwritten when it's acting on an expression (e.g. `some_list.len()` versus `len`)
+            type_checker.environment.define(
+                builtin.get_name().to_string(),
+                Type::BuiltIn(None, builtin.get_name().to_string()),
+            );
+        }
 
         for signature in &program.signatures {
             type_checker.environment.define(

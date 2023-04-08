@@ -229,8 +229,15 @@ impl Visitor for Printer {
         item: NodePtr<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
         Ok(format!(
-            "fn {} {}",
+            "fn {}({}) {}",
             item.borrow().signature.name.name,
+            item.borrow()
+                .signature
+                .params
+                .iter()
+                .map(|(name, typ)| format!("{}: {}", name.name, typ))
+                .collect::<Vec<_>>()
+                .join(", "),
             self.visit_multiple(&item.borrow().stmts)?
         ))
     }
@@ -284,9 +291,10 @@ impl Printer {
             output.push_str(&stmt.accept(self)?);
             output.push('\n');
         }
-        output.push('}');
 
         self.indent -= 4;
+        output.push_str(" ".repeat(self.indent).as_str());
+        output.push('}');
 
         Ok(output)
     }
