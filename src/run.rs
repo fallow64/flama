@@ -13,8 +13,8 @@ pub fn run(source: String, path_pointer: Rc<PathBuf>) {
     let parser = Parser::new(lexer, path_pointer.clone());
 
     let program = Rc::new(unwrap_mul_or_exit(parser.parse_program()));
-    unwrap_mul_or_exit(check::check(program.clone(), path_pointer.clone()));
-    unwrap_mul_or_exit(Printer::print(program.clone()));
+    unwrap_mul_or_exit(check::check(program.clone(), path_pointer));
+    unwrap_mul_or_exit(Printer::print(program));
 }
 
 /// Unwraps a `FlamaResults` or exits the program with error code `1` while logging all errors.

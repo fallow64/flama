@@ -9,7 +9,7 @@ pub mod type_checker;
 pub mod types;
 
 pub fn check(program: Rc<Program>, source_path: Rc<PathBuf>) -> FlamaResults<()> {
-    TypeChecker::check(program.clone(), source_path)?;
+    TypeChecker::check(program, source_path)?;
     // no more errors after this point
 
     Ok(())

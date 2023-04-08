@@ -80,8 +80,8 @@ where
         }
     }
 
-    pub fn parent(&self) -> Option<&Box<Environment<K, V>>> {
-        self.parent.as_ref()
+    pub fn parent(&self) -> Option<&Environment<K, V>> {
+        self.parent.as_deref()
     }
 
     pub fn get_root(&self) -> &Self {

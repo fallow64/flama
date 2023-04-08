@@ -28,7 +28,7 @@ impl Visitor for Printer {
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "({}{})",
-            expr.borrow().operator.to_string(),
+            expr.borrow().operator,
             expr.borrow().right.accept(self)?
         ))
     }
@@ -40,7 +40,7 @@ impl Visitor for Printer {
         Ok(format!(
             "({} {} {})",
             expr.borrow().left.accept(self)?,
-            expr.borrow().operator.to_string(),
+            expr.borrow().operator,
             expr.borrow().right.accept(self)?
         ))
     }
@@ -81,11 +81,11 @@ impl Visitor for Printer {
             output.push_str(&name.name);
             output.push_str(": ");
             output.push_str(&expr.accept(self)?);
-            output.push_str("\n");
+            output.push('\n');
         }
         self.indent -= 4;
         output.push_str(" ".repeat(self.indent).as_str());
-        output.push_str("}");
+        output.push('}');
 
         Ok(output)
         // todo!()
@@ -191,7 +191,7 @@ impl Visitor for Printer {
         let keyword = stmt.borrow().kind.to_string();
 
         let type_annotation = match &stmt.borrow().type_annotation {
-            Some(type_annotation) => format!(": {}", type_annotation.to_string()),
+            Some(type_annotation) => format!(": {}", type_annotation),
             None => "".to_string(),
         };
 
@@ -243,14 +243,14 @@ impl Visitor for Printer {
 
         for (ident, typ) in &decl.borrow().fields {
             output.push_str(" ".repeat(self.indent + 4).as_str());
-            output.push_str(&&ident.name);
+            output.push_str(&ident.name);
             output.push_str(": ");
             output.push_str(&typ.to_string());
             output.push_str(",\n");
         }
 
         output.push_str(" ".repeat(self.indent).as_str());
-        output.push_str("}");
+        output.push('}');
 
         Ok(output)
     }
@@ -275,16 +275,16 @@ impl Printer {
         }
     }
 
-    fn visit_multiple<'a>(&mut self, stmts: &'a Vec<Statement>) -> FlamaResult<String> {
+    fn visit_multiple(&mut self, stmts: &Vec<Statement>) -> FlamaResult<String> {
         let mut output = String::from("{\n");
         self.indent += 4;
 
         for stmt in stmts {
             output.push_str(" ".repeat(self.indent).as_str());
             output.push_str(&stmt.accept(self)?);
-            output.push_str("\n");
+            output.push('\n');
         }
-        output.push_str("}");
+        output.push('}');
 
         self.indent -= 4;
 

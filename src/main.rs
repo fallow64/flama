@@ -1,5 +1,6 @@
 use std::{env, fs, path::Path, rc::Rc};
 
+mod builtins;
 mod check;
 mod error;
 mod lexer;

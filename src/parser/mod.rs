@@ -411,7 +411,7 @@ impl Parser {
             expr = match expr {
                 Expression::Name(name) => Expression::Assign(new_node_ptr(AssignExpr {
                     init: operator,
-                    name: name.borrow().name.clone().into(),
+                    name: name.borrow().name.clone(),
                     value: rhs,
                     typ: None,
                 })),
@@ -659,7 +659,7 @@ impl Parser {
             while !self.is_match(TokenType::RBrace) {
                 let name: Identifier = self.consume(TokenType::Identifier)?.into();
 
-                if fields.iter().any(|(n, _)| &n.name == &name.name) {
+                if fields.iter().any(|(n, _)| n.name == name.name) {
                     self.queued_errors.push(
                         self.make_error(
                             name.span,
@@ -804,8 +804,8 @@ impl Parser {
                 return;
             }
 
-            match self.peek_token.as_ref() {
-                Some(tok) => match tok.ttype {
+            if let Some(tok) = self.peek_token.as_ref() {
+                match tok.ttype {
                     TokenType::Function
                     | TokenType::Let
                     | TokenType::If
@@ -814,8 +814,7 @@ impl Parser {
                     | TokenType::Event
                     | TokenType::Return => return,
                     _ => (),
-                },
-                None => (),
+                }
             }
 
             self.advance();
@@ -906,7 +905,7 @@ impl Parser {
 
     /// Advances the parser by one token and returns the previous token.
     fn advance(&mut self) -> Option<Token> {
-        let next_token = self.lexer.next().map_or(None, |result| match result {
+        let next_token = self.lexer.next().and_then(|result| match result {
             Ok(tok) => Some(tok),
             Err(err) => {
                 self.queued_errors.push(err);

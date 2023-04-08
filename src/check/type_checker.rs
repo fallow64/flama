@@ -7,9 +7,9 @@ use crate::{
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
-            EventItem, ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, IfStmt,
-            InstanciateExpr, LetStmt, ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program,
-            ReturnStmt, SetExpr, StructItem, UnaryExpr, UnaryOperator, WhileStmt,
+            EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt,
+            ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr,
+            StructItem, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -209,7 +209,7 @@ impl Visitor for TypeChecker {
             let expected_type = &params[&field_name.name];
 
             if &field_type != expected_type {
-                return Err(self.expected_error(&expected_type, &field_type, field_expr.span()));
+                return Err(self.expected_error(expected_type, &field_type, field_expr.span()));
             }
         }
 
@@ -249,7 +249,7 @@ impl Visitor for TypeChecker {
             Ok(typ)
         } else {
             Err(self.expected_error(
-                &Type::Function(Box::new(FunctionSignature::default())),
+                &Type::Function(Box::default()),
                 &callee_type,
                 expr.borrow().init.span,
             ))
