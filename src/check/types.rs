@@ -11,7 +11,8 @@ pub enum Type {
     /// Intermediary between parser and type checker. Not to actually be used in the AST.   
     Identifier(Identifier),
     Function(Box<FunctionSignature>),
-    Struct(String, BTreeMap<String, Box<Type>>),
+    // BTreeMap used because it doesn't require a Hash impl
+    Struct(String, BTreeMap<String, Type>),
 
     /// Used for list inference
     Any,

@@ -208,7 +208,7 @@ impl Visitor for TypeChecker {
             let field_type = field_expr.accept(self)?;
             let expected_type = &params[&field_name.name];
 
-            if &field_type != expected_type.as_ref() {
+            if &field_type != expected_type {
                 return Err(self.expected_error(&expected_type, &field_type, field_expr.span()));
             }
         }
@@ -307,8 +307,8 @@ impl Visitor for TypeChecker {
             }
         };
 
-        expr.borrow_mut().typ = Some(*typ.clone());
-        Ok(*typ)
+        expr.borrow_mut().typ = Some(typ.clone());
+        Ok(typ)
     }
 
     fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -520,7 +520,7 @@ impl TypeChecker {
                     // the parser does not know about previous typedefs, so we need to look them up.
                     Type::Identifier(ref ident) => (
                         field.0.name.clone(),
-                        Box::new(match type_checker.typedefs.get(&ident.name) {
+                        match type_checker.typedefs.get(&ident.name) {
                             Some(t) => t.clone(),
                             None => {
                                 errs.push(
@@ -528,11 +528,11 @@ impl TypeChecker {
                                 );
                                 Type::None
                             }
-                        }),
+                        },
                     ),
-                    _ => (field.0.name.clone(), Box::new(field.1.typ.clone())),
+                    _ => (field.0.name.clone(), field.1.typ.clone()),
                 })
-                .collect::<BTreeMap<String, Box<Type>>>();
+                .collect::<BTreeMap<String, Type>>();
 
             type_checker.typedefs.define(
                 strukt.borrow().name.name.clone(),
