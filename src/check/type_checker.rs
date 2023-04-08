@@ -1,15 +1,16 @@
 use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
 
 use crate::{
+    builtins,
     check::{environment::Environment, types::Type},
     error::{ErrorType, FlamaError, FlamaResult, FlamaResults},
     lexer::token::{Span, Spanned},
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
-            EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt,
-            ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr,
-            StructItem, UnaryExpr, UnaryOperator, WhileStmt,
+            EventItem, Expression, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr,
+            LetStmt, ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt,
+            SetExpr, StructItem, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -151,12 +152,19 @@ impl Visitor for TypeChecker {
         let name = expr.borrow().name.clone();
         let value_type = self.environment.get(&name.name);
 
-        if value_type.is_none() {
-            return Err(self.undefined_variable_error(&name.name, name.span));
+        if let Some(builtin) = builtins::get_built_in(&name.name) {
+            let typ = Type::Builtin(builtin.get_name().to_string());
+            expr.borrow_mut().typ = Some(typ.clone());
+            Ok(typ)
+        } else {
+            match value_type {
+                Some(typ) => {
+                    expr.borrow_mut().typ = Some(typ.clone());
+                    Ok(typ.clone())
+                }
+                None => Err(self.undefined_variable_error(&name.name, name.span)),
+            }
         }
-
-        expr.borrow_mut().typ = Some(value_type.unwrap().clone());
-        Ok(value_type.unwrap().clone())
     }
 
     fn visit_instanciate_expr(
@@ -248,11 +256,41 @@ impl Visitor for TypeChecker {
             expr.borrow_mut().typ = Some(typ.clone());
             Ok(typ)
         } else {
-            Err(self.expected_error(
-                &Type::Function(Box::default()),
-                &callee_type,
-                expr.borrow().init.span,
-            ))
+            // first set to `typ` to avoid borrow checker issues
+            let typ = match &expr.borrow().callee {
+                Expression::Name(name) => {
+                    if let Some(builtin) = builtins::get_built_in(&name.borrow().name.name) {
+                        let mut args = Vec::new();
+                        for arg in expr.borrow().args.iter() {
+                            args.push(arg.accept(self)?);
+                        }
+
+                        match builtin.is_valid_args(&args) {
+                            Ok(_) => builtin.get_return_type(None),
+                            Err(message) => {
+                                return Err(self.error(message, expr.borrow().init.span))
+                            }
+                        }
+                    } else {
+                        return Err(self.expected_error(
+                            &Type::Function(Box::default()),
+                            &callee_type,
+                            expr.borrow().init.span,
+                        ));
+                    }
+                }
+                Expression::Get(_) => todo!(),
+                _ => {
+                    return Err(self.expected_error(
+                        &Type::Function(Box::default()),
+                        &callee_type,
+                        expr.borrow().init.span,
+                    ))
+                }
+            };
+
+            expr.borrow_mut().typ = Some(typ.clone());
+            Ok(typ)
         }
     }
 
@@ -560,7 +598,7 @@ impl TypeChecker {
                 None => Err(self.undefined_type_error(&ident.name, ident.span)),
             }
         } else {
-            panic!("type_identifier_to called on non-identifier type")
+            Ok(typ)
         }
     }
 

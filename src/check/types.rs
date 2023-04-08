@@ -14,6 +14,8 @@ pub enum Type {
     // BTreeMap used because it doesn't require a Hash impl
     Struct(String, BTreeMap<String, Type>),
 
+    /// Used for builtins
+    Builtin(String),
     /// Used for list inference
     Any,
     #[default]
@@ -64,7 +66,7 @@ impl Display for Type {
             Type::Struct(name, fields) => {
                 write!(
                     f,
-                    "<struct {}({})>",
+                    "struct<{}({})>",
                     name,
                     fields
                         .iter()
@@ -73,6 +75,7 @@ impl Display for Type {
                         .join(", ")
                 )
             }
+            Type::Builtin(name) => write!(f, "builtin<{}>", name),
             Type::Any => write!(f, "any"),
             Type::Void => write!(f, "void"),
             Type::None => write!(f, "(error in type creation)"),

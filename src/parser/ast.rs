@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::{
+    builtins::BuiltIn,
     check::types::Type,
     lexer::token::{Span, Spanned, Token, TokenType},
 };
@@ -91,6 +92,8 @@ pub struct InstanciateExpr {
 pub struct CallExpr {
     pub init: Token,
     pub callee: Expression,
+    // big hack because i didn't allow for exprs to change to a different type of expr
+    pub builtin: Option<&'static dyn BuiltIn>,
     pub args: Vec<Expression>,
     pub typ: Option<Type>,
 }

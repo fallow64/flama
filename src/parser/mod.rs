@@ -634,6 +634,7 @@ impl Parser {
                 expr = Expression::Call(new_node_ptr(CallExpr {
                     init,
                     callee: expr,
+                    builtin: None,
                     args,
                     typ: None,
                 }));
