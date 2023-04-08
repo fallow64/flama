@@ -13,8 +13,6 @@ pub trait BuiltIn: Debug {
     /// The name of the built-in function.
     fn get_name(&self) -> &str;
 
-    fn is_method(&self) -> bool;
-
     /// Returns whether the built-in function can be called on the given type.
     /// e.g. `some_array.len()` is valid, but `some_number.len()` is not.
     ///
@@ -48,10 +46,6 @@ impl BuiltIn for PrintBuiltIn {
         "p" // temporary because of print statement
     }
 
-    fn is_method(&self) -> bool {
-        false
-    }
-
     fn can_act_on(&self, _base_type: Option<&Type>) -> bool {
         false
     }
@@ -71,10 +65,6 @@ pub struct LenBuiltIn;
 impl BuiltIn for LenBuiltIn {
     fn get_name(&self) -> &str {
         "len" // temporary because of print statement
-    }
-
-    fn is_method(&self) -> bool {
-        true
     }
 
     fn can_act_on(&self, base_type: Option<&Type>) -> bool {

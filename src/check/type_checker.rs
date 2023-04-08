@@ -566,7 +566,10 @@ impl TypeChecker {
         // preliminary definitions
 
         // builtins before signatures because we want to override them
-        for builtin in builtins::BUILT_INS.into_iter().filter(|bi| !bi.is_method()) {
+        for builtin in builtins::BUILT_INS
+            .into_iter()
+            .filter(|bi| bi.can_act_on(None))
+        {
             // defined in the enrironment means that they can be shadowed,
             // but this is overwritten when it's acting on an expression (e.g. `some_list.len()` versus `len`)
             type_checker.environment.define(
