@@ -10,7 +10,7 @@ pub enum Type {
     List(Box<Type>),
     Identifier(Identifier),
     Function(Box<FunctionSignature>),
-    Custom(BTreeMap<String, Box<Type>>),
+    Struct(BTreeMap<String, Box<Type>>),
 
     Any, // used for list inference
     #[default]
@@ -55,7 +55,7 @@ impl Display for Type {
                         .map_or(&Type::default(), |te| &te.typ)
                 )
             }
-            Type::Custom(fields) => {
+            Type::Struct(fields) => {
                 write!(
                     f,
                     "custom<({})>",

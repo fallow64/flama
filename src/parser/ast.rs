@@ -14,7 +14,7 @@ pub type NodePtr<T> = Rc<RefCell<T>>;
 
 pub struct Program {
     pub signatures: Vec<FunctionSignature>,
-    pub structs: Vec<NodePtr<StructItem>>,
+    pub typedefs: Vec<NodePtr<StructItem>>,
     pub items: Vec<Item>,
     pub path: Rc<PathBuf>,
 }
@@ -454,7 +454,7 @@ impl Display for VariableType {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default, PartialOrd, Ord)]
 pub struct Identifier {
     pub name: String,
     pub span: Span,

@@ -34,71 +34,77 @@ impl Visitor for TypeChecker {
         &mut self,
         expr: NodePtr<UnaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
-        let typ = expr.borrow().right.accept(self)?;
+        let right_type = expr.borrow().right.accept(self)?;
 
-        match (&expr.borrow().operator, typ.clone()) {
-            (UnaryOperator::Identity, Type::Number) => Ok(Type::Number),
-            (UnaryOperator::Negate, Type::Number) => Ok(Type::Number),
-            (UnaryOperator::Not, Type::Boolean) => Ok(Type::Boolean),
-            (op, typ) => Err(self.error(
-                format!("operator '{}' not supported on type {}", op, typ),
-                expr.borrow().init.span,
-            )),
-        }
+        let typ = match (&expr.borrow().operator, right_type) {
+            (UnaryOperator::Identity, Type::Number) => Type::Number,
+            (UnaryOperator::Negate, Type::Number) => Type::Number,
+            (UnaryOperator::Not, Type::Boolean) => Type::Boolean,
+            (op, typ) => {
+                return Err(self.error(
+                    format!("operator '{}' not supported on type {}", op, typ),
+                    expr.borrow().init.span,
+                ))
+            }
+        };
+        expr.borrow_mut().typ = Some(typ.clone());
+        Ok(typ)
     }
 
     fn visit_binary_expr(
         &mut self,
         expr: NodePtr<BinaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
-        let typ1 = expr.borrow().left.accept(self)?;
-        let typ2 = expr.borrow().right.accept(self)?;
+        let left_type = expr.borrow().left.accept(self)?;
+        let right_type = expr.borrow().right.accept(self)?;
 
-        match (&expr.borrow().operator, typ1, typ2) {
-            (BinaryOperator::Add, Type::Number, Type::Number) => Ok(Type::Number),
-            (BinaryOperator::Add, Type::String, Type::String) => Ok(Type::String),
-            (BinaryOperator::Add, Type::String, Type::Number) => Ok(Type::String),
-            (BinaryOperator::Add, Type::Number, Type::String) => Ok(Type::String),
-            (BinaryOperator::Subtract, Type::Number, Type::Number) => Ok(Type::Number),
-            (BinaryOperator::Multiply, Type::Number, Type::Number) => Ok(Type::Number),
-            (BinaryOperator::Divide, Type::Number, Type::Number) => Ok(Type::Number),
-            (BinaryOperator::Modulo, Type::Number, Type::Number) => Ok(Type::Number),
+        let typ = match (&expr.borrow().operator, left_type, right_type) {
+            (BinaryOperator::Add, Type::Number, Type::Number) => Type::Number,
+            (BinaryOperator::Add, Type::String, Type::String) => Type::String,
+            (BinaryOperator::Add, Type::String, Type::Number) => Type::String,
+            (BinaryOperator::Add, Type::Number, Type::String) => Type::String,
+            (BinaryOperator::Subtract, Type::Number, Type::Number) => Type::Number,
+            (BinaryOperator::Multiply, Type::Number, Type::Number) => Type::Number,
+            (BinaryOperator::Divide, Type::Number, Type::Number) => Type::Number,
+            (BinaryOperator::Modulo, Type::Number, Type::Number) => Type::Number,
             (BinaryOperator::Equals, a, b) => {
-                if a == b {
-                    Ok(Type::Boolean)
-                } else {
-                    Err(self.expected_error(&a, &b, expr.borrow().init.span))
+                if a != b {
+                    return Err(self.expected_error(&a, &b, expr.borrow().init.span));
                 }
+                Type::Boolean
             }
             (BinaryOperator::NotEq, a, b) => {
-                if a == b {
-                    Ok(Type::Boolean)
-                } else {
-                    Err(self.expected_error(&a, &b, expr.borrow().init.span))
+                if a != b {
+                    return Err(self.expected_error(&a, &b, expr.borrow().init.span));
                 }
+                Type::Boolean
             }
-            (BinaryOperator::Less, Type::Number, Type::Number) => Ok(Type::Boolean),
-            (BinaryOperator::LessEq, Type::Number, Type::Number) => Ok(Type::Boolean),
-            (BinaryOperator::Greater, Type::Number, Type::Number) => Ok(Type::Boolean),
-            (BinaryOperator::GreaterEq, Type::Number, Type::Number) => Ok(Type::Boolean),
-            (BinaryOperator::And, Type::Boolean, Type::Boolean) => Ok(Type::Boolean),
-            (BinaryOperator::Or, Type::Boolean, Type::Boolean) => Ok(Type::Boolean),
+            (BinaryOperator::Less, Type::Number, Type::Number) => Type::Boolean,
+            (BinaryOperator::LessEq, Type::Number, Type::Number) => Type::Boolean,
+            (BinaryOperator::Greater, Type::Number, Type::Number) => Type::Boolean,
+            (BinaryOperator::GreaterEq, Type::Number, Type::Number) => Type::Boolean,
+            (BinaryOperator::And, Type::Boolean, Type::Boolean) => Type::Boolean,
+            (BinaryOperator::Or, Type::Boolean, Type::Boolean) => Type::Boolean,
             (BinaryOperator::Assign, a, b) => {
                 // makes sure that the assigned to variable is the same type as the value
-                if a == b {
-                    Ok(a)
-                } else {
-                    Err(self.expected_error(&a, &b, expr.borrow().init.span))
+                if a != b {
+                    return Err(self.expected_error(&a, &b, expr.borrow().init.span));
                 }
+                a
             }
-            (op, typ1, typ2) => Err(self.error(
-                format!(
-                    "operator '{}' not supported on types {} and {}",
-                    op, typ1, typ2
-                ),
-                expr.borrow().init.span,
-            )),
-        }
+            (op, typ1, typ2) => {
+                return Err(self.error(
+                    format!(
+                        "operator '{}' not supported on types {} and {}",
+                        op, typ1, typ2
+                    ),
+                    expr.borrow().init.span,
+                ))
+            }
+        };
+
+        expr.borrow_mut().typ = Some(typ.clone());
+        Ok(typ)
     }
 
     fn visit_literal_expr(
@@ -112,8 +118,8 @@ impl Visitor for TypeChecker {
     }
 
     fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        if expr.borrow().elements.is_empty() {
-            Ok(Type::List(Box::new(Type::Any)))
+        let typ = if expr.borrow().elements.is_empty() {
+            Type::List(Box::new(Type::Any))
         } else {
             let first_type = expr.borrow().elements[0].accept(self)?;
 
@@ -131,8 +137,11 @@ impl Visitor for TypeChecker {
                 }
             }
 
-            Ok(Type::List(Box::new(first_type)))
-        }
+            Type::List(Box::new(first_type))
+        };
+
+        expr.borrow_mut().typ = Some(typ.clone());
+        Ok(typ)
     }
 
     fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -141,9 +150,10 @@ impl Visitor for TypeChecker {
 
         if value_type.is_none() {
             return Err(self.undefined_variable_error(&name.name, name.span));
-        } else {
-            Ok(value_type.unwrap().clone())
         }
+
+        expr.borrow_mut().typ = Some(value_type.unwrap().clone());
+        Ok(value_type.unwrap().clone())
     }
 
     fn visit_instanciate_expr(
@@ -152,7 +162,56 @@ impl Visitor for TypeChecker {
     ) -> FlamaResult<Self::ExpressionOutput> {
         let struct_name = expr.borrow().name.clone();
 
-        todo!()
+        // for the purpose of this function, struct fields will be referred to as params, and the instanciation fields are just fields
+        let params = match self.typedefs.get(&struct_name.name) {
+            Some(Type::Struct(params)) => params,
+            Some(_) => panic!("non-struct type in typedefs, update this"),
+            None => return Err(self.undefined_type_error(&struct_name.name, struct_name.span)),
+        }
+        .clone();
+
+        // ensure that all `params` keys are in fields
+        // expr.fields is of type Vec<(String, Expression)>
+        for (param_name, _) in params.iter() {
+            if !expr
+                .borrow()
+                .fields
+                .iter()
+                .any(|(field_name, _)| field_name.name == *param_name)
+            {
+                return Err(self.error(
+                    format!(
+                        "expected field '{}' to be defined in instanciation of struct '{}'",
+                        param_name, struct_name.name
+                    ),
+                    struct_name.span,
+                ));
+            }
+        }
+
+        // check that each field is actually a parameter
+        for (field_name, field_expr) in expr.borrow().fields.iter() {
+            if !params.contains_key(&field_name.name) {
+                return Err(self.error(
+                    format!(
+                        "expected field '{}' to be defined in instanciation of struct '{}'",
+                        field_name, struct_name.name
+                    ),
+                    struct_name.span,
+                ));
+            }
+
+            // check that the field is the correct type
+            let field_type = field_expr.accept(self)?;
+            let expected_type = &params[&field_name.name];
+
+            if &field_type != expected_type.as_ref() {
+                return Err(self.expected_error(&expected_type, &field_type, field_expr.span()));
+            }
+        }
+
+        expr.borrow_mut().typ = Some(Type::Struct(params.clone()));
+        Ok(Type::Struct(params))
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -413,7 +472,7 @@ impl TypeChecker {
             );
         }
 
-        for strukt in &program.structs {
+        for strukt in &program.typedefs {
             // TODO: clean this up, mayb enot BTreeMaps?
             let map = strukt
                 .borrow()
@@ -424,7 +483,7 @@ impl TypeChecker {
 
             type_checker
                 .typedefs
-                .define(strukt.borrow().name.name.clone(), Type::Custom(map))
+                .define(strukt.borrow().name.name.clone(), Type::Struct(map))
         }
 
         let mut errs = vec![];

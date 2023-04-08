@@ -203,7 +203,7 @@ impl Display for TokenType {
 /// A span of text in the source code.
 /// Note: this only contains the indices, not the line/column number.
 /// Also, for representing EOF, use `Span { start: 0, end: 0 }`.
-#[derive(Debug, PartialEq, Eq, Default, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy, Hash, PartialOrd, Ord)]
 pub struct Span {
     pub start: usize,
     pub end: usize,

@@ -58,14 +58,16 @@ impl Parser {
         let mut structs = vec![];
         for result in self {
             match result {
-                Ok(item) => match item {
-                    Item::Function(ref function) => {
-                        signatures.push(function.borrow().signature.clone());
-                        items.push(item);
+                Ok(item) => {
+                    match item {
+                        Item::Function(ref function) => {
+                            signatures.push(function.borrow().signature.clone());
+                        }
+                        Item::Struct(ref structure) => structs.push(structure.clone()),
+                        _ => (),
                     }
-                    Item::Struct(structure) => structs.push(structure),
-                    _ => items.push(item),
-                },
+                    items.push(item);
+                }
                 Err(error) => errors.push(error),
             }
         }
@@ -73,7 +75,7 @@ impl Parser {
         if errors.is_empty() {
             Ok(Program {
                 signatures,
-                structs,
+                typedefs: structs,
                 items,
                 path: source_path,
             })
@@ -289,9 +291,9 @@ impl Parser {
         self.consume(TokenType::SemiColon)?;
 
         if self.loop_depth == 0 {
-            return Err(
-                self.make_error(init.span, "continue statement outside of loop".to_string())
-            );
+            // minor error, so instead of halting, we just queue it
+            self.queued_errors
+                .push(self.make_error(init.span, "continue statement outside of loop".to_string()));
         }
 
         Ok(ContinueStmt { init })
@@ -303,7 +305,9 @@ impl Parser {
         self.consume(TokenType::SemiColon)?;
 
         if self.loop_depth == 0 {
-            return Err(self.make_error(init.span, "break statement outside of loop".to_string()));
+            // minor error, so instead of halting, we just queue it
+            self.queued_errors
+                .push(self.make_error(init.span, "break statement outside of loop".to_string()));
         }
 
         Ok(BreakStmt { init })
@@ -321,7 +325,8 @@ impl Parser {
         self.consume(TokenType::SemiColon)?;
 
         if !self.in_function {
-            return Err(self.make_error(
+            // minor error, so instead of halting, we just queue it
+            self.queued_errors.push(self.make_error(
                 init.span,
                 "return statement outside of function".to_string(),
             ));
@@ -405,9 +410,11 @@ impl Parser {
                     typ: None,
                 })),
                 _ => {
-                    return Err(
-                        self.make_error(operator.span, "invalid assignment target".to_string())
-                    )
+                    // minor error, so instead of halting, we just queue it
+                    self.queued_errors.push(
+                        self.make_error(operator.span, "invalid assignment target".to_string()),
+                    );
+                    expr
                 }
             }
         }
@@ -629,12 +636,30 @@ impl Parser {
         let expr = self.parse_primary()?;
 
         if let Expression::Name(name) = &expr {
+            if !self.is_match(TokenType::LBrace) {
+                return Ok(expr);
+            }
+
             let init = self.consume(TokenType::LBrace)?;
 
-            let mut fields = vec![];
+            let mut fields: Vec<(Identifier, Expression)> = vec![];
             while !self.is_match(TokenType::RBrace) {
                 let name: Identifier = self.consume(TokenType::Identifier)?.into();
+
+                if fields
+                    .iter()
+                    .any(|(n, _)| dbg!(&n.name) == dbg!(&name.name))
+                {
+                    self.queued_errors.push(
+                        self.make_error(
+                            name.span,
+                            format!("field '{}' already defined", name.name),
+                        ),
+                    );
+                }
+
                 self.consume(TokenType::Colon)?;
+
                 let value = self.parse_expression()?;
 
                 fields.push((name, value));
