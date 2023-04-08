@@ -1,14 +1,7 @@
-use std::{
-    env,
-    fmt::Display,
-    fs,
-    path::{Path, PathBuf},
-    rc::Rc,
-};
-
-use lexer::token::Span;
+use std::{env, fs, path::Path, rc::Rc};
 
 mod check;
+mod error;
 mod lexer;
 mod logger;
 mod parser;
@@ -29,37 +22,4 @@ fn run_file(file_name: String) {
     let path_pointer = Rc::new(Path::new(&file_name).to_path_buf());
 
     run::run(source, path_pointer);
-}
-
-// etc
-
-pub type FlamaResult<T> = Result<T, FlamaError>;
-
-pub type FlamaResults<T> = Result<T, Vec<FlamaError>>;
-
-#[derive(Debug)]
-pub enum ErrorType {
-    Syntax,
-    Parsing,
-    Type,
-    Name,
-}
-
-impl Display for ErrorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ErrorType::Syntax => write!(f, "syntax error"),
-            ErrorType::Parsing => write!(f, "parsing error"),
-            ErrorType::Type => write!(f, "type error"),
-            ErrorType::Name => write!(f, "name error"),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct FlamaError {
-    pub message: String,
-    pub span: Span,
-    pub error_type: ErrorType,
-    pub source_path: Rc<PathBuf>,
 }

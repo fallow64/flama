@@ -2,7 +2,7 @@ pub mod token;
 
 use std::{path::PathBuf, rc::Rc};
 
-use crate::{ErrorType, FlamaError, FlamaResult};
+use crate::error::{ErrorType, FlamaError, FlamaResult};
 
 use self::token::{Span, Token, TokenType};
 

@@ -1,6 +1,6 @@
 use std::{path::PathBuf, rc::Rc};
 
-use crate::{parser::ast::Program, FlamaResults};
+use crate::{error::FlamaResults, parser::ast::Program};
 
 use self::type_checker::TypeChecker;
 

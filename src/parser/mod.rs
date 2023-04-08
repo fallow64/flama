@@ -2,12 +2,12 @@ use std::{mem, path::PathBuf, rc::Rc};
 
 use crate::{
     check::types::Type,
+    error::{ErrorType, FlamaError, FlamaResult},
     lexer::{
         token::{Span, Token, TokenType},
         Lexer,
     },
     parser::ast::BinaryExpr,
-    ErrorType, FlamaError, FlamaResult,
 };
 
 use self::ast::{

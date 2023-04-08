@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::{
+    error::{FlamaResult, FlamaResults},
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem,
@@ -10,7 +11,6 @@ use crate::{
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
-    FlamaResult, FlamaResults,
 };
 
 pub struct Printer {

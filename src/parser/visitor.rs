@@ -1,4 +1,4 @@
-use crate::FlamaResult;
+use crate::error::FlamaResult;
 
 use super::ast::{
     AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,

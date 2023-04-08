@@ -2,7 +2,7 @@ use std::fs;
 
 use colored::Colorize;
 
-use crate::{lexer::token::Span, FlamaError};
+use crate::{error::FlamaError, lexer::token::Span};
 
 pub fn report_error(error: FlamaError) {
     let span = error.span;

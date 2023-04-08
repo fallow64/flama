@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
 
 use crate::{
     check::{environment::Environment, types::Type},
+    error::{ErrorType, FlamaError, FlamaResult, FlamaResults},
     lexer::token::{Span, Spanned},
     parser::{
         ast::{
@@ -12,7 +13,6 @@ use crate::{
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
-    ErrorType, FlamaError, FlamaResult, FlamaResults,
 };
 
 // note: this file is littered with `clone()` calls, which is not ideal, but quite frankly I don't wanna deal with it right now
@@ -581,7 +581,12 @@ impl TypeChecker {
     }
 
     fn undefined_variable_error(&self, name: &String, span: Span) -> FlamaError {
-        self.error(format!("undefined variable '{}'", name), span)
+        FlamaError {
+            message: format!("undefined variable '{}'", name),
+            span,
+            error_type: ErrorType::Name,
+            source_path: self.source_path.clone(),
+        }
     }
 
     fn undefined_type_error(&self, name: &String, span: Span) -> FlamaError {

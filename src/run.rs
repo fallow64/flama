@@ -2,10 +2,10 @@ use std::{path::PathBuf, process, rc::Rc};
 
 use crate::{
     check,
+    error::FlamaResults,
     lexer::Lexer,
     logger,
     parser::{ast_printer::Printer, Parser},
-    FlamaResults,
 };
 
 pub fn run(source: String, path_pointer: Rc<PathBuf>) {
