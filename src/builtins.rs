@@ -35,6 +35,14 @@ pub trait BuiltIn: Debug {
     /// * `args` - The arguments to the built-in function. Includes the base type if there is one.
     fn is_valid_args(&self, base_type: Option<&Type>, args: &[Type]) -> Result<(), String>;
 
+    fn is_method(&self) -> bool {
+        !self.can_act_on(None)
+    }
+
+    fn is_function(&self) -> bool {
+        self.can_act_on(None)
+    }
+
     // fn compile();
 }
 
@@ -46,8 +54,8 @@ impl BuiltIn for PrintBuiltIn {
         "p" // temporary because of print statement
     }
 
-    fn can_act_on(&self, _base_type: Option<&Type>) -> bool {
-        false
+    fn can_act_on(&self, base_type: Option<&Type>) -> bool {
+        base_type.is_none()
     }
 
     fn get_return_type(&self, _base_type: Option<&Type>) -> Type {

@@ -261,6 +261,7 @@ impl Visitor for TypeChecker {
 
                 let mut args = vec![];
                 if let Some(ref base_type) = base_type {
+                    // this check is also done in the `visit_get_expr` function, but might as well do it here too just in case
                     if !builtin.can_act_on(Some(base_type)) {
                         return Err(self.error(
                             format!(
@@ -270,7 +271,7 @@ impl Visitor for TypeChecker {
                             expr.borrow().init.span,
                         ));
                     }
-                } else if !builtin.can_act_on(None) {
+                } else if builtin.is_method() {
                     return Err(self.error(
                         format!("builtin '{}' cannot be called on type 'void'", builtin_name),
                         expr.borrow().init.span,
@@ -335,8 +336,8 @@ impl Visitor for TypeChecker {
                 if field_type.is_none() {
                     return Err(self.error(
                         format!(
-                            "struct '{}' has no field '{}'",
-                            expr.borrow().typ.as_ref().unwrap(),
+                            "type '{}' has no field '{}'",
+                            expr.borrow().object.get_type().unwrap_or(Type::None),
                             field_name
                         ),
                         expr.borrow().init.span,
@@ -345,24 +346,38 @@ impl Visitor for TypeChecker {
 
                 field_type.unwrap().clone()
             }
-            _ => {
-                if self.looking_for_builtin {
-                    // dont check environment because normal builtins can be shadowed, but builtins that act on expressions cannot
-                    // e.g. `len` can be shadowed, but `some_list.len` cannot
-                    if let Some(builtin) = builtins::get_built_in(&expr.borrow().name.name) {
-                        Type::BuiltIn(Some(Box::new(object_type)), builtin.get_name().to_string())
-                    } else {
+            _ if self.looking_for_builtin => {
+                // dont check environment because normal builtins can be shadowed, but builtins that act on expressions cannot
+                // e.g. `len` can be shadowed, but `some_list.len` cannot
+                if let Some(builtin) = builtins::get_built_in(&expr.borrow().name.name) {
+                    // for now doesn't work if the BuiltIn can act on the base type
+                    if !builtin.can_act_on(Some(&object_type)) {
                         return Err(self.error(
-                            format!("'{}' is not a struct", dbg!(object_type)),
+                            format!(
+                                "builtin '{}' cannot be called on type '{}'",
+                                builtin.get_name(),
+                                object_type
+                            ),
                             expr.borrow().init.span,
                         ));
                     }
+                    Type::BuiltIn(Some(Box::new(object_type)), builtin.get_name().to_string())
                 } else {
                     return Err(self.error(
-                        format!("'{}' is not a struct", dbg!(object_type)),
+                        format!(
+                            "type '{}' has no field '{}'",
+                            object_type,
+                            expr.borrow().name.name
+                        ),
                         expr.borrow().init.span,
                     ));
                 }
+            }
+            _ => {
+                return Err(self.error(
+                    format!("type '{}' is not a struct", object_type),
+                    expr.borrow().init.span,
+                ))
             }
         };
 
@@ -568,7 +583,7 @@ impl TypeChecker {
         // builtins before signatures because we want to override them
         for builtin in builtins::BUILT_INS
             .into_iter()
-            .filter(|bi| bi.can_act_on(None))
+            .filter(|bi| bi.is_function())
         {
             // defined in the enrironment means that they can be shadowed,
             // but this is overwritten when it's acting on an expression (e.g. `some_list.len()` versus `len`)

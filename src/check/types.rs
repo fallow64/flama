@@ -66,17 +66,8 @@ impl Display for Type {
                         .map_or(&Type::default(), |te| &te.typ)
                 )
             }
-            Type::Struct(name, fields) => {
-                write!(
-                    f,
-                    "struct<{}({})>",
-                    name,
-                    fields
-                        .iter()
-                        .map(|(name, typ)| format!("{}: {}", name, typ))
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                )
+            Type::Struct(name, _) => {
+                write!(f, "<struct {}>", name)
             }
             Type::BuiltIn(base, name) => write!(
                 f,
