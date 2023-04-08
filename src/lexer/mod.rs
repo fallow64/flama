@@ -6,6 +6,7 @@ use crate::error::{ErrorType, FlamaError, FlamaResult};
 
 use self::token::{Span, Token, TokenType};
 
+/// The lexer handles the conversion of source code into a stream of tokens.
 pub struct Lexer {
     source: Vec<char>,
     start: usize,
@@ -23,6 +24,7 @@ impl Lexer {
         }
     }
 
+    /// Scans for the next available token. Does not perform whitespace skipping.
     fn scan_token(&mut self) -> FlamaResult<Token> {
         let c = self.advance();
         match c {
@@ -76,6 +78,7 @@ impl Lexer {
         }
     }
 
+    /// Handles a string literal. Assumes that the first " has already been consumed.
     fn handle_string(&mut self) -> FlamaResult<Token> {
         while !self.is_at_end() {
             if self.peek() != '\\' && self.peek_next() == '"' {
@@ -89,6 +92,7 @@ impl Lexer {
         Err(self.make_error("unterminated string".to_string()))
     }
 
+    /// Handles a number literal. Assumes that the first digit has already been consumed.
     fn handle_number(&mut self) -> Token {
         let mut chars: Vec<char> = vec![self.source[self.current - 1]]; // include the current character
 
@@ -109,6 +113,7 @@ impl Lexer {
         self.make_spanned(TokenType::Number)
     }
 
+    /// Handles an identifier or keyword. Assumes that the first character has already been consumed.
     fn handle_identifier(&mut self) -> Token {
         while self.peek().is_alphanumeric() || self.peek() == '_' {
             self.advance();
@@ -118,6 +123,7 @@ impl Lexer {
         self.make_spanned(TokenType::get_keyword(lexeme))
     }
 
+    /// Skips the whitespace until the next meaningful character. Comments are also counted as whitespace.
     fn skip_whitespace(&mut self) {
         while !self.is_at_end() {
             match self.peek() {
@@ -138,6 +144,8 @@ impl Lexer {
         }
     }
 
+    /// Skips a multi-line comment. Assumes that the initial /* has not been consumed.
+    /// This is a seperate function because it is recursive, in order to allow for nesting.
     fn multi_line_comment(&mut self) {
         self.advance(); // consume initial / and *
         self.advance();
@@ -156,6 +164,7 @@ impl Lexer {
 
     // Utility functions
 
+    /// Returns the lexeme of the current token.
     fn get_lexeme(&self) -> String {
         self.source[self.start..self.current]
             .iter()
@@ -163,6 +172,7 @@ impl Lexer {
             .collect()
     }
 
+    /// Returns the next character in the source code. If the end of the source code has been reached, returns '\0'.
     fn peek(&self) -> char {
         if self.is_at_end() {
             '\0'
@@ -171,6 +181,7 @@ impl Lexer {
         }
     }
 
+    /// Returns 2 characters ahead of the current character. If it is beyond the end of the source code, returns '\0'.
     fn peek_next(&self) -> char {
         if self.current + 1 >= self.source.len() {
             '\0'
@@ -179,11 +190,13 @@ impl Lexer {
         }
     }
 
+    /// If the next character is the given character, consumes it and returns `cons`. Otherwise, returns `alt`.
     fn if_char_else(&mut self, condition: char, cons: TokenType, alt: TokenType) -> Token {
         let result = if self.is_match(condition) { cons } else { alt };
         self.make_spanned(result)
     }
 
+    /// If the next character is the given character, consumes it and returns `true`. Otherwise, returns `false`.
     fn is_match(&mut self, condition: char) -> bool {
         if self.peek() != condition {
             false
@@ -193,17 +206,18 @@ impl Lexer {
         }
     }
 
+    /// Consumes the next character and returns it. Does not check if the end of the source code has been reached.
     fn advance(&mut self) -> char {
         self.current += 1;
         self.source[self.current - 1]
     }
 
+    /// Returns true if the end of the source code has been reached.
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
 
-    // abcdef
-
+    /// Creates a token with the given type and default settings.
     fn make_spanned(&self, ttype: TokenType) -> Token {
         Token {
             ttype,
@@ -215,6 +229,7 @@ impl Lexer {
         }
     }
 
+    /// Creates an error with the given message and `ErrorType::Syntax`.
     fn make_error(&self, message: String) -> FlamaError {
         FlamaError {
             message,

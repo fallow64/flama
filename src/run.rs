@@ -1,4 +1,9 @@
-use std::{path::PathBuf, process, rc::Rc};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process,
+    rc::Rc,
+};
 
 use crate::{
     check,
@@ -8,6 +13,15 @@ use crate::{
     parser::{ast_printer::Printer, Parser},
 };
 
+/// Reads the contents of a file, then calls `run()`.
+pub fn run_file(file_name: String) {
+    let source = fs::read_to_string(&file_name).expect("Error while reading file.");
+    let path_pointer = Rc::new(Path::new(&file_name).to_path_buf());
+
+    run(source, path_pointer);
+}
+
+/// Runs the compiler. Does not return anything.
 pub fn run(source: String, path_pointer: Rc<PathBuf>) {
     let lexer = Lexer::new(source, path_pointer.clone());
     let parser = Parser::new(lexer, path_pointer.clone());

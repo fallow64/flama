@@ -21,6 +21,9 @@ pub mod ast;
 pub mod ast_printer;
 pub mod visitor;
 
+/// The parser handles the conversion of a stream of tokens into an abstract syntax tree.
+/// It is a recursive descent parser, meaning that it uses a set of mutually recursive
+/// functions to parse the tokens.
 pub struct Parser {
     lexer: Lexer,
     queued_errors: Vec<FlamaError>,

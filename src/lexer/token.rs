@@ -2,6 +2,7 @@ use core::fmt::{self, Display};
 
 use crate::parser::ast::{BinaryOperator, UnaryOperator};
 
+/// A token is a single unit of the language. It is a single word, number, or symbol.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Token {
     pub ttype: TokenType,
@@ -9,6 +10,10 @@ pub struct Token {
     pub span: Span,
 }
 
+/// The `TokenType` enum contains all of the possible types of tokens.
+/// The reason that `Token` is not just an enum with the different types
+/// is because, while it would be more memory-efficient, it would be
+/// mcuh more difficult to work with.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum TokenType {
     // groupings
@@ -79,6 +84,8 @@ pub enum TokenType {
 }
 
 impl TokenType {
+    /// Returns the matching keyword for the `name` string.
+    /// If there are no corresponding keywords, then `TokenType::Identifier` is returned.
     pub fn get_keyword(name: String) -> TokenType {
         match name.as_str() {
             "event" => TokenType::Event,
@@ -202,7 +209,7 @@ impl Display for TokenType {
 
 /// A span of text in the source code.
 /// Note: this only contains the indices, not the line/column number.
-/// Also, for representing EOF, use `Span { start: 0, end: 0 }`.
+/// Also, for representing EOF, use `Span { start: 0, end: 0 }`, or `Span::default()`.
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy, Hash, PartialOrd, Ord)]
 pub struct Span {
     pub start: usize,

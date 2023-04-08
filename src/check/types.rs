@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, fmt::Display, ops::Deref};
 
 use crate::parser::ast::{FunctionSignature, Identifier, LiteralKind};
 
+/// The `Type` enum contains all of the possible types of types of expressions.
 #[derive(Debug, Clone, Eq, Default)]
 pub enum Type {
     Number,

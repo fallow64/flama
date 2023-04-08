@@ -4,6 +4,7 @@ use colored::Colorize;
 
 use crate::{error::FlamaError, lexer::token::Span};
 
+/// `report_error` prints a formatted error message and the location of the error.
 pub fn report_error(error: FlamaError) {
     let span = error.span;
     let source_path = error.source_path;

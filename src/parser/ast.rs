@@ -20,14 +20,15 @@ pub struct Program {
     pub path: Rc<PathBuf>,
 }
 
-// creates a new `NodePtr` from a value
-// create them like this incasez we need to change the implementation
+// Creates a new NodePtr<T>. This is a convenience function incase
+// we change the implementation of NodePtr<T> in the future.
 pub fn new_node_ptr<T>(val: T) -> NodePtr<T> {
     Rc::new(RefCell::new(val))
 }
 
 // ------------------------- EXPRESSIONS -------------------------
 
+/// An expression is a node in the AST that can be evaluated to a value.
 #[derive(Debug, Clone)]
 pub enum Expression {
     Unary(NodePtr<UnaryExpr>),
@@ -125,6 +126,7 @@ pub struct SetExpr {
 
 // ------------------------- STATEMENTS -------------------------
 
+/// A statement is a node in the AST that does not evaluate to a value, but rather performs some side effect.
 #[derive(Debug, Clone)]
 pub enum Statement {
     Block(NodePtr<BlockStmt>),
@@ -197,6 +199,7 @@ pub struct ExpressionStmt {
 
 // ------------------------- ITEMS -------------------------
 
+/// An item is a node in the AST that is either directly compiled or represents higher-level features.
 #[derive(Debug, Clone)]
 pub enum Item {
     Event(NodePtr<EventItem>),
@@ -227,6 +230,8 @@ pub struct StructItem {
 
 // ------------------------- TYPED EXPRESSIONS -------------------------
 
+/// A type expressions is an explicit type annotation in the source code.
+/// `init` is not an `Identifier` because it can be a primitive type.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeExpression {
     pub init: Token,
@@ -242,7 +247,7 @@ impl Display for TypeExpression {
 // ------------------------ IMPLS --------------------------
 
 impl Expression {
-    #[allow(dead_code)]
+    /// Returns the type of the expression, if it has one.
     pub fn get_type(&self) -> Option<Type> {
         match self {
             Expression::Unary(expr) => expr.borrow().typ.clone(),
@@ -310,12 +315,14 @@ impl Spanned for TypeExpression {
 
 // ------------------------- UTILITY -------------------------
 
+/// A parameter is a name and type annotation.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Parameter {
     pub name: Identifier,
     pub type_annotation: TypeExpression,
 }
 
+/// A field is a name and value.
 #[derive(Debug, Clone)]
 pub struct Field {
     pub name: Identifier,
@@ -328,13 +335,14 @@ impl Display for Parameter {
     }
 }
 
+/// A function signature is a name, a list of parameters, and an optional return type.
+/// `return_type` is not `Type::Void` because it needs a TypeExpression, which is explicit.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct FunctionSignature {
     pub name: Identifier,
     pub params: Vec<(Identifier, TypeExpression)>,
     pub return_type: Option<TypeExpression>,
 }
-
 #[derive(Debug, Clone)]
 pub enum UnaryOperator {
     Identity,
@@ -391,6 +399,7 @@ impl Display for BinaryOperator {
     }
 }
 
+/// A literal is a value that can be evaluated at compile time.
 #[derive(Debug, Clone)]
 pub enum LiteralKind {
     Number(f64),
@@ -426,6 +435,8 @@ impl From<bool> for LiteralKind {
     }
 }
 
+/// The differing types of variables.
+/// `Let` is the preffered type, but the others have DF correlations.
 #[derive(Debug, Clone)]
 pub enum VariableType {
     Save,
@@ -457,6 +468,8 @@ impl Display for VariableType {
     }
 }
 
+/// An identifier is a name and a span.
+/// Differentiated from Token for convenience.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default, PartialOrd, Ord)]
 pub struct Identifier {
     pub name: String,

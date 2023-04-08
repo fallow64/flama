@@ -7,6 +7,9 @@ use super::ast::{
     UnaryExpr, WhileStmt,
 };
 
+/// A trait for visiting AST nodes.
+/// This could be seperated out into 3 seperate traits, but that adds
+/// more hastle when 99% of the time you want to visit all 3.
 pub trait Visitor {
     type ExpressionOutput;
     type StatementOutput;
@@ -61,14 +64,17 @@ pub trait Visitor {
     fn visit_struct_item(&mut self, decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput>;
 }
 
+/// Double dispatch for visiting expression AST nodes.
 pub trait ExpressionVisitable {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput>;
 }
 
+/// Double dispatch for visiting statement AST nodes.
 pub trait StatementVisitable {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput>;
 }
 
+/// Double dispatch for visiting item AST nodes.
 pub trait ItemVisitable {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput>;
 }

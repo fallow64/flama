@@ -27,6 +27,7 @@ pub struct TypeChecker {
     typedefs: Environment<String, Type>,
     source_path: Rc<PathBuf>,
     return_type: Type,
+    /// This is true when CallExpr is being visisted, and used in GetExpr to look for built-ins.
     looking_for_builtin: bool,
 }
 
@@ -282,9 +283,11 @@ impl Visitor for TypeChecker {
                     args.push(arg.accept(self)?);
                 }
 
-                // it the match condition, convert builtin `base_type` from Option<Box<Type>> to Option<&Type>
                 match builtin.is_valid_args(base_type.as_deref(), &args) {
-                    Ok(_) => builtin.get_return_type(None),
+                    Ok(_) => {
+                        expr.borrow_mut().builtin = Some(builtin);
+                        builtin.get_return_type(None)
+                    }
                     Err(message) => return Err(self.error(message, expr.borrow().init.span)),
                 }
             }

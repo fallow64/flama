@@ -13,6 +13,7 @@ use crate::{
     },
 };
 
+/// Helper struct for visting the AST and printing it.
 pub struct Printer {
     indent: usize,
 }
@@ -264,6 +265,7 @@ impl Visitor for Printer {
 }
 
 impl Printer {
+    /// Prints the given program to `stdout`.
     pub fn print(program: Rc<Program>) -> FlamaResults<()> {
         let mut printer = Printer { indent: 0 };
 
