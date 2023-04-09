@@ -44,3 +44,12 @@ impl Builtin for Print {
         compiler.push_block("PlayerAction", "send_message", Map::new(), values);
     }
 }
+
+
+rules for GetExpr:
+
+1. parse object
+2. if it a struct, proceed like normal
+3. if it isn't a struct, then see if the name is a builtin
+4. if it is a builtin
+5. if it isn't a builtin, then say struct error

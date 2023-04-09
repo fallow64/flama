@@ -349,12 +349,13 @@ impl Visitor for TypeChecker {
 
                 field_type.unwrap().clone()
             }
-            _ if self.looking_for_builtin => {
+            _ => {
                 // dont check environment because normal builtins can be shadowed, but builtins that act on expressions cannot
                 // e.g. `len` can be shadowed, but `some_list.len` cannot
                 if let Some(builtin) = builtins::get_built_in(&expr.borrow().name.name) {
-                    // for now doesn't work if the BuiltIn can act on the base type
-                    if !builtin.can_act_on(Some(&object_type)) {
+                    if builtin.can_act_on(Some(&object_type)) {
+                        Type::BuiltIn(Some(Box::new(object_type)), builtin.get_name().to_string())
+                    } else {
                         return Err(self.error(
                             format!(
                                 "builtin '{}' cannot be called on type '{}'",
@@ -364,24 +365,18 @@ impl Visitor for TypeChecker {
                             expr.borrow().init.span,
                         ));
                     }
-                    Type::BuiltIn(Some(Box::new(object_type)), builtin.get_name().to_string())
                 } else {
                     return Err(self.error(
-                        format!(
-                            "type '{}' has no field '{}'",
-                            object_type,
-                            expr.borrow().name.name
-                        ),
+                        format!("type '{}' is not a struct", object_type),
                         expr.borrow().init.span,
                     ));
                 }
-            }
-            _ => {
-                return Err(self.error(
-                    format!("type '{}' is not a struct", object_type),
-                    expr.borrow().init.span,
-                ))
-            }
+            } // _ => {
+              //     return Err(self.error(
+              //         format!("type '{}' is not a struct", object_type),
+              //         expr.borrow().init.span,
+              //     ))
+              // }
         };
 
         expr.borrow_mut().typ = Some(typ.clone());
