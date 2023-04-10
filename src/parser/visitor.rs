@@ -3,8 +3,8 @@ use crate::error::FlamaResult;
 use super::ast::{
     AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
     ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, Item, LetStmt, ListExpr,
-    LiteralExpr, NameExpr, NodePtr, PrintStmt, ReturnStmt, SetExpr, Statement, StructItem,
-    UnaryExpr, WhileStmt,
+    LiteralExpr, NameExpr, NodePtr, ReturnStmt, SetExpr, Statement, StructItem, UnaryExpr,
+    WhileStmt,
 };
 
 /// A trait for visiting AST nodes.
@@ -40,7 +40,6 @@ pub trait Visitor {
     fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput>;
 
     fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput>;
-    fn visit_print_stmt(&mut self, stmt: NodePtr<PrintStmt>) -> FlamaResult<Self::StatementOutput>;
     fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput>;
     fn visit_while_stmt(&mut self, stmt: NodePtr<WhileStmt>) -> FlamaResult<Self::StatementOutput>;
     fn visit_continue_stmt(
@@ -106,7 +105,6 @@ impl StatementVisitable for Statement {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         match self {
             Statement::Block(stmt) => visitor.visit_block_stmt(stmt.clone()),
-            Statement::Print(stmt) => visitor.visit_print_stmt(stmt.clone()),
             Statement::If(stmt) => visitor.visit_if_stmt(stmt.clone()),
             Statement::While(stmt) => visitor.visit_while_stmt(stmt.clone()),
             Statement::Continue(stmt) => visitor.visit_continue_stmt(stmt.clone()),
@@ -205,12 +203,6 @@ impl ExpressionVisitable for NodePtr<SetExpr> {
 impl StatementVisitable for NodePtr<BlockStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_block_stmt(self.clone())
-    }
-}
-
-impl StatementVisitable for NodePtr<PrintStmt> {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
-        visitor.visit_print_stmt(self.clone())
     }
 }
 

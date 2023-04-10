@@ -9,8 +9,8 @@ use crate::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
             EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt,
-            ListExpr, LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr,
-            StructItem, UnaryExpr, UnaryOperator, WhileStmt,
+            ListExpr, LiteralExpr, NameExpr, NodePtr, Program, ReturnStmt, SetExpr, StructItem,
+            UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -91,13 +91,6 @@ impl Visitor for TypeChecker {
             (BinaryOperator::GreaterEq, Type::Number, Type::Number) => Type::Boolean,
             (BinaryOperator::And, Type::Boolean, Type::Boolean) => Type::Boolean,
             (BinaryOperator::Or, Type::Boolean, Type::Boolean) => Type::Boolean,
-            (BinaryOperator::Assign, a, b) => {
-                // makes sure that the assigned to variable is the same type as the value
-                if a != b {
-                    return Err(self.expected_error(&a, &b, expr.borrow().init.span));
-                }
-                a
-            }
             (op, typ1, typ2) => {
                 return Err(self.error(
                     format!(
@@ -286,7 +279,7 @@ impl Visitor for TypeChecker {
                 match builtin.is_valid_args(base_type.as_deref(), &args) {
                     Ok(_) => {
                         expr.borrow_mut().builtin = Some(builtin);
-                        builtin.get_return_type(None)
+                        builtin.get_return_type(base_type.as_deref())
                     }
                     Err(message) => return Err(self.error(message, expr.borrow().init.span)),
                 }
@@ -395,14 +388,6 @@ impl Visitor for TypeChecker {
             statement.accept(self)?;
         }
         self.environment.pop();
-
-        Ok(())
-    }
-
-    fn visit_print_stmt(&mut self, stmt: NodePtr<PrintStmt>) -> FlamaResult<Self::StatementOutput> {
-        // any types allowed in print stmt
-        let typ = stmt.borrow().value.accept(self)?;
-        println!("{}", typ);
 
         Ok(())
     }

@@ -57,7 +57,12 @@ pub enum BlockInfo {
     #[serde(rename = "control")]
     Control { args: Args, action: String },
     #[serde(rename = "repeat")]
-    Repeat { args: Args, action: String },
+    Repeat {
+        args: Args,
+        action: String,
+        #[serde(rename = "subAction")]
+        sub_action: Option<String>,
+    },
     // TODO: Select, NOT
 }
 
@@ -74,13 +79,13 @@ pub struct Args {
     pub items: Vec<CodeItem>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CodeItem {
     pub item: CodeValue,
     pub slot: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "id", content = "data")]
 pub enum CodeValue {
     #[serde(rename = "txt")]
@@ -145,12 +150,13 @@ pub enum CodeValue {
 }
 // TODO: particles, spawn eggs?
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub enum VariableScope {
     #[serde(rename = "saved")]
     Save,
     #[serde(rename = "unsaved")]
     Global,
+    #[default]
     #[serde(rename = "local")]
     Local,
 }
@@ -171,9 +177,153 @@ pub enum BracketType {
     Repeat,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ParticleCluster {
     pub amount: i32,
     pub horizontal: f64,
     pub vertical: f64,
+}
+
+// Shorthands
+
+pub fn if_var(var: CodeValue, value: CodeValue) -> CodeBlock {
+    CodeBlock {
+        id: "block".to_string(),
+        info: Info::BlockInfo(BlockInfo::IfVariable {
+            args: Args {
+                items: vec![
+                    CodeItem { item: var, slot: 0 },
+                    CodeItem {
+                        item: value,
+                        slot: 1,
+                    },
+                ],
+            },
+            action: "=".to_string(),
+        }),
+    }
+}
+
+pub fn set_var(var: CodeValue, value: CodeValue) -> CodeBlock {
+    CodeBlock {
+        id: "block".to_string(),
+        info: Info::BlockInfo(BlockInfo::SetVariable {
+            args: Args {
+                items: vec![
+                    CodeItem { item: var, slot: 0 },
+                    CodeItem {
+                        item: value,
+                        slot: 1,
+                    },
+                ],
+            },
+            action: "=".to_string(),
+        }),
+    }
+}
+
+/// Shorthand for creating an Else CodeBlock
+pub fn else_block() -> CodeBlock {
+    CodeBlock {
+        id: "else".to_string(),
+        info: Info::BlockInfo(BlockInfo::Else),
+    }
+}
+
+/// Shorthand for creating an open bracket CodeBlock
+pub fn open_bracket() -> CodeBlock {
+    CodeBlock {
+        id: "bracket".to_string(),
+        info: Info::BracketInfo(BracketInfo {
+            direction: BracketDirection::Open,
+            typ: BracketType::Normal,
+        }),
+    }
+}
+
+/// Shorthand for creating an open bracket CodeBlock
+pub fn open_repeat_bracket() -> CodeBlock {
+    CodeBlock {
+        id: "bracket".to_string(),
+        info: Info::BracketInfo(BracketInfo {
+            direction: BracketDirection::Open,
+            typ: BracketType::Repeat,
+        }),
+    }
+}
+
+/// Shorthand for creating a close bracket CodeBlock
+pub fn close_bracket() -> CodeBlock {
+    CodeBlock {
+        id: "bracket".to_string(),
+        info: Info::BracketInfo(BracketInfo {
+            direction: BracketDirection::Close,
+            typ: BracketType::Normal,
+        }),
+    }
+}
+
+/// Shorthand for creating a close bracket CodeBlock
+pub fn close_repeat_bracket() -> CodeBlock {
+    CodeBlock {
+        id: "bracket".to_string(),
+        info: Info::BracketInfo(BracketInfo {
+            direction: BracketDirection::Open,
+            typ: BracketType::Repeat,
+        }),
+    }
+}
+
+// Non-serde stuff
+
+impl From<String> for CodeValue {
+    fn from(s: String) -> Self {
+        CodeValue::Text { name: s }
+    }
+}
+
+impl From<i32> for CodeValue {
+    fn from(i: i32) -> Self {
+        CodeValue::Number {
+            name: i.to_string(),
+        }
+    }
+}
+
+impl From<f64> for CodeValue {
+    fn from(f: f64) -> Self {
+        CodeValue::Number {
+            name: f.to_string(),
+        }
+    }
+}
+
+impl From<BlockInfo> for CodeBlock {
+    fn from(b: BlockInfo) -> Self {
+        CodeBlock {
+            id: "block".to_string(),
+            info: Info::BlockInfo(b),
+        }
+    }
+}
+
+impl CodeValue {
+    pub fn as_string(&self) -> Option<String> {
+        match self {
+            CodeValue::Text { name } => Some(name.clone()),
+            CodeValue::Number { name } => Some(name.clone()),
+            CodeValue::Variable { name, .. } => Some(format!("%var({})", name)),
+            _ => None,
+        }
+    }
+
+    pub fn as_item(self, slot: i32) -> CodeItem {
+        CodeItem { item: self, slot }
+    }
+}
+
+impl From<Vec<CodeItem>> for Args {
+    fn from(v: Vec<CodeItem>) -> Self {
+        Args { items: v }
+    }
 }

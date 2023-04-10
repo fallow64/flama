@@ -68,7 +68,6 @@ pub enum TokenType {
     Return,
     True,
     False,
-    Print,
     Const,
     Struct,
     // types
@@ -103,7 +102,6 @@ impl TokenType {
             "return" => TokenType::Return,
             "true" => TokenType::True,
             "false" => TokenType::False,
-            "print" => TokenType::Print,
             "const" => TokenType::Const,
             "struct" => TokenType::Struct,
             "num" => TokenType::TypeNumber,
@@ -130,7 +128,6 @@ impl TokenType {
             TokenType::LessEq => Some(BinaryOperator::LessEq),
             TokenType::Or => Some(BinaryOperator::Or),
             TokenType::And => Some(BinaryOperator::And),
-            TokenType::Assign => Some(BinaryOperator::Assign),
             _ => None,
         }
     }
@@ -192,7 +189,6 @@ impl Display for TokenType {
             TokenType::Return => f.write_str("RETURN")?,
             TokenType::True => f.write_str("TRUE")?,
             TokenType::False => f.write_str("FALSE")?,
-            TokenType::Print => f.write_str("PRINT")?,
             TokenType::Const => f.write_str("CONST")?,
             TokenType::Struct => f.write_str("STRUCT")?,
             TokenType::TypeNumber => f.write_str("TYPENUMBER")?,

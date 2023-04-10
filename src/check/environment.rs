@@ -13,7 +13,6 @@ pub struct Environment<K, V> {
 impl<K, V> Environment<K, V>
 where
     K: Hash + Eq,
-    V: Hash + Eq,
 {
     pub fn new() -> Self {
         Self {

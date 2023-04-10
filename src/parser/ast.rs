@@ -130,7 +130,6 @@ pub struct SetExpr {
 #[derive(Debug, Clone)]
 pub enum Statement {
     Block(NodePtr<BlockStmt>),
-    Print(NodePtr<PrintStmt>),
     If(NodePtr<IfStmt>),
     While(NodePtr<WhileStmt>),
     Continue(NodePtr<ContinueStmt>),
@@ -144,12 +143,6 @@ pub enum Statement {
 pub struct BlockStmt {
     pub init: Token,
     pub statements: Vec<Statement>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PrintStmt {
-    pub init: Token,
-    pub value: Expression,
 }
 
 #[derive(Debug, Clone)]
@@ -285,7 +278,6 @@ impl Spanned for Statement {
     fn span(&self) -> Span {
         match self {
             Statement::Block(stmt) => stmt.borrow().init.span,
-            Statement::Print(stmt) => stmt.borrow().init.span,
             Statement::If(stmt) => stmt.borrow().init.span,
             Statement::While(stmt) => stmt.borrow().init.span,
             Statement::Continue(stmt) => stmt.borrow().init.span,
@@ -375,7 +367,6 @@ pub enum BinaryOperator {
     LessEq,
     Or,
     And,
-    Assign,
 }
 
 impl Display for BinaryOperator {
@@ -394,8 +385,21 @@ impl Display for BinaryOperator {
             BinaryOperator::LessEq => write!(f, "<="),
             BinaryOperator::Or => write!(f, "||"),
             BinaryOperator::And => write!(f, "&&"),
-            BinaryOperator::Assign => write!(f, "="),
         }
+    }
+}
+
+impl BinaryOperator {
+    /// Returns true if an operator is able to be used in `%math`.
+    pub fn is_math_safe(&self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::Add
+                | BinaryOperator::Subtract
+                | BinaryOperator::Multiply
+                | BinaryOperator::Divide
+                | BinaryOperator::Modulo
+        )
     }
 }
 

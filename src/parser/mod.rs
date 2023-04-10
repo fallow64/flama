@@ -13,8 +13,8 @@ use crate::{
 use self::ast::{
     new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
     ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, InstanciateExpr,
-    Item, LetStmt, ListExpr, LiteralExpr, NameExpr, PrintStmt, Program, ReturnStmt, SetExpr,
-    Statement, StructItem, TypeExpression, UnaryExpr, VariableType, WhileStmt,
+    Item, LetStmt, ListExpr, LiteralExpr, NameExpr, Program, ReturnStmt, SetExpr, Statement,
+    StructItem, TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
@@ -218,7 +218,6 @@ impl Parser {
             .ttype
         {
             TokenType::LBrace => Ok(Statement::Block(new_node_ptr(self.parse_block_stmt()?))),
-            TokenType::Print => Ok(Statement::Print(new_node_ptr(self.parse_print_stmt()?))),
             TokenType::If => Ok(Statement::If(new_node_ptr(self.parse_if_stmt()?))),
             TokenType::While => Ok(Statement::While(new_node_ptr(self.parse_while_stmt()?))),
             TokenType::Continue => Ok(Statement::Continue(new_node_ptr(
@@ -245,15 +244,6 @@ impl Parser {
             init,
             statements: stmts,
         })
-    }
-
-    /// `"print" <expr> ";"`
-    fn parse_print_stmt(&mut self) -> FlamaResult<PrintStmt> {
-        let init = self.consume(TokenType::Print)?;
-        let value = self.parse_expression()?;
-
-        self.consume(TokenType::SemiColon)?;
-        Ok(PrintStmt { init, value })
     }
 
     /// `"if" <expr> <block> ("else" <block>)?`
@@ -814,7 +804,6 @@ impl Parser {
                     | TokenType::Let
                     | TokenType::If
                     | TokenType::While
-                    | TokenType::Print
                     | TokenType::Event
                     | TokenType::Return => return,
                     _ => (),

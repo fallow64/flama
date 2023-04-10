@@ -6,8 +6,8 @@ use crate::{
         ast::{
             AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem,
             ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt, ListExpr,
-            LiteralExpr, NameExpr, NodePtr, PrintStmt, Program, ReturnStmt, SetExpr, Statement,
-            StructItem, UnaryExpr, WhileStmt,
+            LiteralExpr, NameExpr, NodePtr, Program, ReturnStmt, SetExpr, Statement, StructItem,
+            UnaryExpr, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -138,12 +138,6 @@ impl Visitor for Printer {
 
     fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
         self.visit_multiple(&stmt.borrow().statements)
-    }
-
-    fn visit_print_stmt(&mut self, stmt: NodePtr<PrintStmt>) -> FlamaResult<Self::StatementOutput> {
-        let value = stmt.borrow().value.accept(self)?;
-
-        Ok(format!("print {};", value))
     }
 
     fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput> {

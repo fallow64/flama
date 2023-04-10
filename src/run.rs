@@ -6,11 +6,7 @@ use std::{
 };
 
 use crate::{
-    check,
-    error::FlamaResults,
-    lexer::Lexer,
-    logger,
-    parser::{ast_printer::Printer, Parser},
+    check, compiler::compiler::Compiler, error::FlamaResults, lexer::Lexer, logger, parser::Parser,
 };
 
 /// Reads the contents of a file, then calls `run()`.
@@ -28,7 +24,12 @@ pub fn run(source: String, path_pointer: Rc<PathBuf>) {
 
     let program = Rc::new(unwrap_mul_or_exit(parser.parse_program()));
     unwrap_mul_or_exit(check::check(program.clone(), path_pointer));
-    unwrap_mul_or_exit(Printer::print(program));
+    // unwrap_mul_or_exit(Printer::print(program.clone()));
+
+    let templates = Compiler::compile_program(program);
+    for template in templates {
+        println!("{}", serde_json::to_string(&template).unwrap());
+    }
 }
 
 /// Unwraps a `FlamaResults` or exits the program with error code `1` while logging all errors.

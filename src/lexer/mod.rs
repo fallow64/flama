@@ -268,7 +268,7 @@ mod tests {
     fn test_all_tokens() {
         let source = r#"
             () {} [] + - * / % ! == != > >= < <= || && = -> => . , : ; ...
-            event fn let save local game if else for while continue break return true false print const
+            event fn let save local game if else for while continue break return true false const
             num string bool this_is_an_identifier "this_is_a_string" 1234 3.1415926
         "#;
 
@@ -316,7 +316,6 @@ mod tests {
             TokenType::Return,
             TokenType::True,
             TokenType::False,
-            TokenType::Print,
             TokenType::Const,
             TokenType::TypeNumber,
             TokenType::TypeString,
