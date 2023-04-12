@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
 
 use crate::{
-    builtins,
     check::{environment::Environment, types::Type},
     error::{ErrorType, FlamaError, FlamaResult, FlamaResults},
     lexer::token::{Span, Spanned},
@@ -27,8 +26,6 @@ pub struct TypeChecker {
     typedefs: Environment<String, Type>,
     source_path: Rc<PathBuf>,
     return_type: Type,
-    /// This is true when CallExpr is being visisted, and used in GetExpr to look for built-ins.
-    looking_for_builtin: bool,
 }
 
 impl Visitor for TypeChecker {
@@ -215,9 +212,7 @@ impl Visitor for TypeChecker {
     }
 
     fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        self.looking_for_builtin = true;
         let callee_type = expr.borrow().callee.accept(self)?;
-        self.looking_for_builtin = false;
 
         let typ = match callee_type {
             Type::Function(signature) => {
@@ -250,40 +245,6 @@ impl Visitor for TypeChecker {
 
                 self.type_identifier_to(signature.return_type.map_or(Type::Void, |rt| rt.typ))?
             }
-            Type::BuiltIn(base_type, builtin_name) => {
-                let builtin = builtins::get_built_in(&builtin_name).unwrap();
-
-                let mut args = vec![];
-                if let Some(ref base_type) = base_type {
-                    // this check is also done in the `visit_get_expr` function, but might as well do it here too just in case
-                    if !builtin.can_act_on(Some(base_type)) {
-                        return Err(self.error(
-                            format!(
-                                "builtin '{}' cannot be called on type '{}'",
-                                builtin_name, base_type
-                            ),
-                            expr.borrow().init.span,
-                        ));
-                    }
-                } else if builtin.is_method() {
-                    return Err(self.error(
-                        format!("builtin '{}' cannot be called on type 'void'", builtin_name),
-                        expr.borrow().init.span,
-                    ));
-                }
-
-                for arg in expr.borrow().args.iter() {
-                    args.push(arg.accept(self)?);
-                }
-
-                match builtin.is_valid_args(base_type.as_deref(), &args) {
-                    Ok(_) => {
-                        expr.borrow_mut().builtin = Some(builtin);
-                        builtin.get_return_type(base_type.as_deref())
-                    }
-                    Err(message) => return Err(self.error(message, expr.borrow().init.span)),
-                }
-            }
             _ => {
                 return Err(self.expected_error(
                     &Type::Function(Box::default()),
@@ -303,15 +264,6 @@ impl Visitor for TypeChecker {
     ) -> FlamaResult<Self::ExpressionOutput> {
         let value_type = expr.borrow().value.accept(self)?;
         let var_type = self.environment.get(&expr.borrow().name.name);
-
-        // if the variable is not defined, we can't assign to it
-        // and if it's a built-in, we can't assign to it either (they're immutable)
-        if matches!(var_type, Some(Type::BuiltIn(_, _)) | None) {
-            return Err(
-                self.undefined_variable_error(&expr.borrow().name.name, expr.borrow().name.span)
-            );
-        }
-
         let var_type = var_type.unwrap();
 
         if var_type == &value_type {
@@ -343,33 +295,11 @@ impl Visitor for TypeChecker {
                 field_type.unwrap().clone()
             }
             _ => {
-                // dont check environment because normal builtins can be shadowed, but builtins that act on expressions cannot
-                // e.g. `len` can be shadowed, but `some_list.len` cannot
-                if let Some(builtin) = builtins::get_built_in(&expr.borrow().name.name) {
-                    if builtin.can_act_on(Some(&object_type)) {
-                        Type::BuiltIn(Some(Box::new(object_type)), builtin.get_name().to_string())
-                    } else {
-                        return Err(self.error(
-                            format!(
-                                "builtin '{}' cannot be called on type '{}'",
-                                builtin.get_name(),
-                                object_type
-                            ),
-                            expr.borrow().init.span,
-                        ));
-                    }
-                } else {
-                    return Err(self.error(
-                        format!("type '{}' is not a struct", object_type),
-                        expr.borrow().init.span,
-                    ));
-                }
-            } // _ => {
-              //     return Err(self.error(
-              //         format!("type '{}' is not a struct", object_type),
-              //         expr.borrow().init.span,
-              //     ))
-              // }
+                return Err(self.error(
+                    format!("type '{}' is not a struct", object_type),
+                    expr.borrow().init.span,
+                ));
+            }
         };
 
         expr.borrow_mut().typ = Some(typ.clone());
@@ -553,7 +483,6 @@ impl TypeChecker {
             typedefs: Environment::new(),
             source_path,
             return_type: Type::default(),
-            looking_for_builtin: false,
         }
     }
 
@@ -562,19 +491,6 @@ impl TypeChecker {
         let mut errs = vec![];
 
         // preliminary definitions
-
-        // builtins before signatures because we want to override them
-        for builtin in builtins::BUILT_INS
-            .into_iter()
-            .filter(|bi| bi.is_function())
-        {
-            // defined in the enrironment means that they can be shadowed,
-            // but this is overwritten when it's acting on an expression (e.g. `some_list.len()` versus `len`)
-            type_checker.environment.define(
-                builtin.get_name().to_string(),
-                Type::BuiltIn(None, builtin.get_name().to_string()),
-            );
-        }
 
         for signature in &program.signatures {
             type_checker.environment.define(

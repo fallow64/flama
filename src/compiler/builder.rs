@@ -325,7 +325,7 @@ impl CodeValue {
         }
     }
 
-    pub fn as_item(self, slot: i32) -> CodeItem {
+    pub fn into_item(self, slot: i32) -> CodeItem {
         CodeItem { item: self, slot }
     }
 }

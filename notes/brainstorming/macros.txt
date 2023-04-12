@@ -1,0 +1,13 @@
+Since code space is limited in DF, it is very important that the least amount of codespace is used.
+
+Instead of creating a class for things like strings or numbers, a type of macro system should be added
+in order to simplify the creation of what should be very little actual blocks.
+
+Perhaps something like this?:
+```
+
+macro name(a: typ1, b: typ1 | typ2) {
+
+}
+
+```

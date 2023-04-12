@@ -8,9 +8,7 @@ use std::{
 
 use flate2::{write::GzEncoder, Compression};
 
-use crate::{
-    check, compiler::compiler::Compiler, error::FlamaResults, lexer::Lexer, logger, parser::Parser,
-};
+use crate::{check, compiler::Compiler, error::FlamaResults, lexer::Lexer, logger, parser::Parser};
 
 /// Reads the contents of a file, then calls `run()`.
 pub fn run_file(file_name: String) {
@@ -60,6 +58,5 @@ fn encode_template(raw: String) -> String {
     let mut e = GzEncoder::new(Vec::new(), Compression::default());
     e.write_all(raw.as_bytes()).unwrap();
     let compressed = e.finish().unwrap();
-    let encoded = base64::encode(&compressed);
-    encoded
+    base64::encode(compressed)
 }

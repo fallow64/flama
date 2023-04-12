@@ -1,6 +1,5 @@
 use std::env;
 
-mod builtins;
 mod check;
 mod compiler;
 mod error;

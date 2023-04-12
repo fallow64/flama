@@ -627,7 +627,6 @@ impl Parser {
                 expr = Expression::Call(new_node_ptr(CallExpr {
                     init,
                     callee: expr,
-                    builtin: None,
                     args,
                     typ: None,
                 }));
@@ -902,7 +901,7 @@ impl Parser {
             Ok(tok) => Some(tok),
             Err(err) => {
                 self.queued_errors.push(err);
-                None
+                self.advance()
             }
         });
 
@@ -990,10 +989,10 @@ impl Iterator for Parser {
     type Item = FlamaResult<Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_token.is_none() {
-            None
-        } else if let Some(err) = self.queued_errors.pop() {
+        if let Some(err) = self.queued_errors.pop() {
             Some(Err(err))
+        } else if self.current_token.is_none() {
+            None
         } else {
             Some(self.parse_item())
         }

@@ -6,7 +6,6 @@ use std::{
 };
 
 use crate::{
-    builtins::BuiltIn,
     check::types::Type,
     lexer::token::{Span, Spanned, Token, TokenType},
 };
@@ -93,8 +92,6 @@ pub struct InstanciateExpr {
 pub struct CallExpr {
     pub init: Token,
     pub callee: Expression,
-    // big hack because i didn't allow for exprs to change to a different type of expr
-    pub builtin: Option<&'static dyn BuiltIn>,
     pub args: Vec<Expression>,
     pub typ: Option<Type>,
 }
@@ -225,7 +222,7 @@ pub struct StructItem {
 
 /// A type expressions is an explicit type annotation in the source code.
 /// `init` is not an `Identifier` because it can be a primitive type.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeExpression {
     pub init: Token,
     pub typ: Type,
@@ -308,7 +305,7 @@ impl Spanned for TypeExpression {
 // ------------------------- UTILITY -------------------------
 
 /// A parameter is a name and type annotation.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Parameter {
     pub name: Identifier,
     pub type_annotation: TypeExpression,
@@ -329,7 +326,7 @@ impl Display for Parameter {
 
 /// A function signature is a name, a list of parameters, and an optional return type.
 /// `return_type` is not `Type::Void` because it needs a TypeExpression, which is explicit.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FunctionSignature {
     pub name: Identifier,
     pub params: Vec<(Identifier, TypeExpression)>,

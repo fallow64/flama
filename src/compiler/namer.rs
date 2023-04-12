@@ -12,7 +12,7 @@ impl Namer {
     pub fn get_rand_var(&self, base: &str) -> CodeValue {
         let uuid = Uuid::new_v4();
         CodeValue::Variable {
-            name: format!("$temp_{}_{}", base, uuid.to_string()),
+            name: format!("$temp_{}_{}", base, uuid),
             scope: VariableScope::default(),
         }
     }
