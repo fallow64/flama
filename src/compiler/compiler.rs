@@ -6,9 +6,9 @@ use crate::{
     parser::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
-            EventItem, Expression, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr,
-            LetStmt, ListExpr, LiteralExpr, LiteralKind, NameExpr, NodePtr, Program, ReturnStmt,
-            SetExpr, StructItem, UnaryExpr, UnaryOperator, WhileStmt,
+            EventItem, Expression, ExpressionStmt, FunctionItem, GetExpr, Identifier, IfStmt,
+            InstanciateExpr, LetStmt, ListExpr, LiteralExpr, LiteralKind, NameExpr, NodePtr,
+            Program, ReturnStmt, SetExpr, StructItem, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -89,34 +89,31 @@ impl Compiler {
     fn push_scope(&mut self) {
         self.current_stack.push(
             BlockInfo::SetVariable {
-                args: Args {
-                    items: vec![Self::get_scope_count().as_item(0)],
-                },
+                args: vec![Self::get_scope_count().as_item(0)].into(),
                 action: "+=".to_string(),
             }
             .into(),
         );
         self.current_stack.push(
             BlockInfo::SetVariable {
-                args: Args {
-                    items: vec![
-                        Self::get_scope_count_prefix().as_item(0),
-                        CodeValue::Tag {
-                            option: "Any part of name".to_string(),
-                            tag: "Match Requirement".to_string(),
-                            action: "PurgeVars".to_string(),
-                            block: "set_var".to_string(),
-                        }
-                        .as_item(25),
-                        CodeValue::Tag {
-                            option: "False".to_string(),
-                            tag: "Ignore Case".to_string(),
-                            action: "PurgeVars".to_string(),
-                            block: "set_var".to_string(),
-                        }
-                        .as_item(26),
-                    ],
-                },
+                args: vec![
+                    Self::get_scope_count_prefix().as_item(0),
+                    CodeValue::Tag {
+                        option: "Any part of name".to_string(),
+                        tag: "Match Requirement".to_string(),
+                        action: "PurgeVars".to_string(),
+                        block: "set_var".to_string(),
+                    }
+                    .as_item(25),
+                    CodeValue::Tag {
+                        option: "False".to_string(),
+                        tag: "Ignore Case".to_string(),
+                        action: "PurgeVars".to_string(),
+                        block: "set_var".to_string(),
+                    }
+                    .as_item(26),
+                ]
+                .into(),
                 action: "PurgeVars".to_string(),
             }
             .into(),
@@ -126,25 +123,24 @@ impl Compiler {
     fn pop_scope(&mut self) {
         self.current_stack.push(
             BlockInfo::SetVariable {
-                args: Args {
-                    items: vec![
-                        Self::get_scope_count_prefix().as_item(0),
-                        CodeValue::Tag {
-                            option: "Any part of name".to_string(),
-                            tag: "Match Requirement".to_string(),
-                            action: "PurgeVars".to_string(),
-                            block: "set_var".to_string(),
-                        }
-                        .as_item(25),
-                        CodeValue::Tag {
-                            option: "False".to_string(),
-                            tag: "Ignore Case".to_string(),
-                            action: "PurgeVars".to_string(),
-                            block: "set_var".to_string(),
-                        }
-                        .as_item(26),
-                    ],
-                },
+                args: vec![
+                    Self::get_scope_count_prefix().as_item(0),
+                    CodeValue::Tag {
+                        option: "Any part of name".to_string(),
+                        tag: "Match Requirement".to_string(),
+                        action: "PurgeVars".to_string(),
+                        block: "set_var".to_string(),
+                    }
+                    .as_item(25),
+                    CodeValue::Tag {
+                        option: "False".to_string(),
+                        tag: "Ignore Case".to_string(),
+                        action: "PurgeVars".to_string(),
+                        block: "set_var".to_string(),
+                    }
+                    .as_item(26),
+                ]
+                .into(),
                 action: "PurgeVars".to_string(),
             }
             .into(),
@@ -152,9 +148,7 @@ impl Compiler {
 
         self.current_stack.push(
             BlockInfo::SetVariable {
-                args: Args {
-                    items: vec![Self::get_scope_count().as_item(0)],
-                },
+                args: vec![Self::get_scope_count().as_item(0)].into(),
                 action: "-=".to_string(),
             }
             .into(),
@@ -222,20 +216,14 @@ impl Visitor for Compiler {
         let result_var = self.namer.get_rand_var("binop");
         self.current_stack.push(
             BlockInfo::IfVariable {
-                args: Args {
-                    items: vec![val1.as_item(0), val2.as_item(1)],
-                },
+                args: vec![val1.as_item(0), val2.as_item(1)].into(),
                 action: result_action,
             }
             .into(),
         );
         self.current_stack.push(builder::open_bracket());
-        self.current_stack.push(builder::set_var(
-            result_var.clone(),
-            CodeValue::Number {
-                name: "1".to_string(),
-            },
-        ));
+        self.current_stack
+            .push(builder::set_var(result_var.clone(), 1.into()));
         self.current_stack.push(builder::close_bracket());
         self.current_stack.push(builder::else_block());
         self.current_stack.push(builder::open_bracket());
@@ -274,7 +262,7 @@ impl Visitor for Compiler {
 
         self.current_stack.push(
             BlockInfo::SetVariable {
-                args: Args { items: values },
+                args: values.into(),
                 action: "CreateList".to_string(),
             }
             .into(),
@@ -324,7 +312,7 @@ impl Visitor for Compiler {
 
             self.current_stack.push(
                 BlockInfo::SetVariable {
-                    args: Args { items: args },
+                    args: args.into(),
                     action: "CreateList".to_string(),
                 }
                 .into(),
@@ -360,8 +348,25 @@ impl Visitor for Compiler {
         Ok(value)
     }
 
-    fn visit_get_expr(&mut self, _: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
-        todo!()
+    fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+        let result = self.namer.get_rand_var("get");
+        let object = expr.borrow().object.accept(self)?;
+        self.current_stack.push(
+            BlockInfo::SetVariable {
+                args: vec![
+                    result.clone().as_item(0),
+                    object.as_item(1),
+                    <Identifier as Into<CodeValue>>::into(expr.borrow().name.clone())
+                        .as_item(2)
+                        .into(),
+                ]
+                .into(),
+                action: "GetDictValue".to_string(),
+            }
+            .into(),
+        );
+
+        Ok(result)
     }
 
     fn visit_set_expr(&mut self, _: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -369,13 +374,13 @@ impl Visitor for Compiler {
     }
 
     fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
-        // self.push_scope();
+        self.push_scope();
 
         for statement in &stmt.borrow().statements {
             statement.accept(self)?;
         }
 
-        // self.pop_scope();
+        self.pop_scope();
 
         Ok(())
     }
@@ -383,25 +388,17 @@ impl Visitor for Compiler {
     fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput> {
         let condition = stmt.borrow().condition.accept(self)?;
 
-        self.current_stack.push(builder::if_var(
-            condition,
-            CodeValue::Number {
-                name: "1".to_string(),
-            },
-        ));
+        self.current_stack
+            .push(builder::if_var(condition, 1.into()));
 
         self.current_stack.push(builder::open_bracket());
-        self.push_scope();
         stmt.borrow().body.accept(self)?;
-        self.pop_scope();
         self.current_stack.push(builder::close_bracket());
 
         if let Some(alt) = &stmt.borrow().alternative {
             self.current_stack.push(builder::else_block());
             self.current_stack.push(builder::open_bracket());
-            self.push_scope();
             alt.accept(self)?;
-            self.pop_scope();
             self.current_stack.push(builder::close_bracket());
         }
 
@@ -416,10 +413,7 @@ impl Visitor for Compiler {
                 args: Args {
                     items: vec![
                         condition.as_item(0),
-                        CodeValue::Number {
-                            name: "1".to_string(),
-                        }
-                        .as_item(1),
+                        <i32 as Into<CodeValue>>::into(1).as_item(1),
                     ],
                 },
                 action: "While".to_string(),

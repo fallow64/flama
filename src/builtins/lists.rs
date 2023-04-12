@@ -40,9 +40,8 @@ impl BuiltIn for LenBuiltIn {
         &self,
         compiler: &mut Compiler,
         base: Option<(CodeValue, Type)>,
-        args: Vec<(CodeValue, Type)>,
+        _args: Vec<(CodeValue, Type)>,
     ) -> Option<CodeValue> {
-        assert_eq!(args.len(), 0);
         let (base, base_type) = base.unwrap();
 
         let result_var = compiler.namer.get_rand_var("len");

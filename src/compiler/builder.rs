@@ -2,6 +2,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::parser::ast::Identifier;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CodeTemplate {
     pub blocks: Vec<CodeBlock>,
@@ -279,6 +281,12 @@ pub fn close_repeat_bracket() -> CodeBlock {
 impl From<String> for CodeValue {
     fn from(s: String) -> Self {
         CodeValue::Text { name: s }
+    }
+}
+
+impl From<Identifier> for CodeValue {
+    fn from(value: Identifier) -> Self {
+        CodeValue::Text { name: value.name }
     }
 }
 
