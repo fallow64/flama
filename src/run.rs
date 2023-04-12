@@ -55,7 +55,7 @@ fn unwrap_mul_or_exit<T>(result: FlamaResults<T>) -> T {
 
 fn encode_template(raw: String) -> String {
     // first gzip encode, then base64 encode.
-    let mut e = GzEncoder::new(Vec::new(), Compression::default());
+    let mut e = GzEncoder::new(Vec::new(), Compression::best());
     e.write_all(raw.as_bytes()).unwrap();
     let compressed = e.finish().unwrap();
     base64::encode(compressed)

@@ -1,7 +1,7 @@
 use std::{mem, path::PathBuf, rc::Rc};
 
 use crate::{
-    check::types::Type,
+    check::types::{FunctionType, Type},
     error::{ErrorType, FlamaError, FlamaResult},
     lexer::{
         token::{Span, Token, TokenType},
@@ -772,6 +772,28 @@ impl Parser {
                 Type::List(Box::new(inner.typ))
             }
             TokenType::Identifier => Type::Identifier(init.clone().into()),
+            TokenType::Function => {
+                self.consume(TokenType::LParen)?;
+                let mut params = vec![];
+                while !self.is_match(TokenType::RParen) {
+                    params.push(self.parse_type_expression()?.typ);
+                    if self.is_match(TokenType::Comma) {
+                        self.advance();
+                    }
+                }
+                self.consume(TokenType::RParen)?;
+                let return_type = if self.is_match(TokenType::Arrow) {
+                    self.advance();
+                    Some(self.parse_type_expression()?.typ)
+                } else {
+                    None
+                };
+
+                Type::Function(Box::new(FunctionType {
+                    params,
+                    return_type,
+                }))
+            }
             _ => {
                 return Err(self.make_error_expected(
                     &[

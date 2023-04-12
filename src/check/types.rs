@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display};
 
 use crate::parser::ast::{FunctionSignature, Identifier, LiteralKind};
 
@@ -11,9 +11,8 @@ pub enum Type {
     List(Box<Type>),
     /// Intermediary between parser and type checker. Not to actually be used in the AST.   
     Identifier(Identifier),
-    Function(Box<FunctionSignature>),
-    // BTreeMap used because it doesn't require a Hash impl
-    Struct(String, BTreeMap<String, Type>),
+    Function(Box<FunctionType>),
+    Struct(String, HashMap<String, Type>),
 
     /// Used for list inference
     Any,
@@ -54,12 +53,10 @@ impl Display for Type {
                     "fn<({}) -> {}>",
                     sig.params
                         .iter()
-                        .map(|p| format!("{}: {}", p.0, p.1))
+                        .map(|typ| format!("{}", typ))
                         .collect::<Vec<String>>()
                         .join(", "),
-                    sig.return_type
-                        .as_ref()
-                        .map_or(&Type::default(), |te| &te.typ)
+                    sig.return_type.as_ref().unwrap_or(&Type::default())
                 )
             }
             Type::Struct(name, _) => {
@@ -68,6 +65,25 @@ impl Display for Type {
             Type::Any => write!(f, "any"),
             Type::Void => write!(f, "void"),
             Type::None => write!(f, "(error in type creation)"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FunctionType {
+    pub params: Vec<Type>,
+    pub return_type: Option<Type>,
+}
+
+impl From<FunctionSignature> for FunctionType {
+    fn from(value: FunctionSignature) -> Self {
+        FunctionType {
+            params: value
+                .params
+                .iter()
+                .map(|p| p.1.typ.clone())
+                .collect::<Vec<Type>>(),
+            return_type: value.return_type.map(|te| te.typ).clone(),
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use crate::{
     check::{environment::Environment, types::Type},
@@ -215,25 +215,23 @@ impl Visitor for TypeChecker {
         let callee_type = expr.borrow().callee.accept(self)?;
 
         let typ = match callee_type {
-            Type::Function(signature) => {
+            Type::Function(func_type) => {
                 let mut args = Vec::new();
 
                 for arg in expr.borrow().args.iter() {
                     args.push(arg.accept(self)?);
                 }
 
-                if args.len() != signature.params.len() {
+                if args.len() != func_type.params.len() {
                     return Err(self.arity_error(
-                        &signature.name.name,
-                        signature.params.len(),
+                        func_type.params.len(),
                         args.len(),
                         expr.borrow().init.span,
                     ));
                 }
 
                 for (i, arg) in args.into_iter().enumerate() {
-                    let expected_type =
-                        self.type_identifier_to(signature.params[i].1.typ.clone())?;
+                    let expected_type = self.type_identifier_to(func_type.params[i].clone())?;
                     if arg != expected_type {
                         return Err(self.expected_error(
                             &expected_type,
@@ -243,7 +241,7 @@ impl Visitor for TypeChecker {
                     }
                 }
 
-                self.type_identifier_to(signature.return_type.map_or(Type::Void, |rt| rt.typ))?
+                self.type_identifier_to(func_type.return_type.unwrap_or(Type::Void))?
             }
             _ => {
                 return Err(self.expected_error(
@@ -495,12 +493,11 @@ impl TypeChecker {
         for signature in &program.signatures {
             type_checker.environment.define(
                 signature.name.name.clone(),
-                Type::Function(Box::new(signature.clone())),
+                Type::Function(Box::new(signature.clone().into())),
             );
         }
 
         for strukt in &program.typedefs {
-            // TODO: clean this up, maybe not BTreeMaps?
             let map = strukt
                 .borrow()
                 .fields
@@ -521,7 +518,7 @@ impl TypeChecker {
                     ),
                     _ => (field.0.name.clone(), field.1.typ.clone()),
                 })
-                .collect::<BTreeMap<String, Type>>();
+                .collect::<HashMap<String, Type>>();
 
             type_checker.typedefs.define(
                 strukt.borrow().name.name.clone(),
@@ -542,6 +539,7 @@ impl TypeChecker {
         }
     }
 
+    /// Replaces Type::Identifier with the actual type.
     fn type_identifier_to(&self, typ: Type) -> FlamaResult<Type> {
         if let Type::Identifier(ident) = typ {
             match self.typedefs.get(&ident.name) {
@@ -589,18 +587,9 @@ impl TypeChecker {
         )
     }
 
-    fn arity_error(
-        &self,
-        func_name: &String,
-        expected: usize,
-        actual: usize,
-        span: Span,
-    ) -> FlamaError {
+    fn arity_error(&self, expected: usize, actual: usize, span: Span) -> FlamaError {
         self.error(
-            format!(
-                "expected {} arguments for function '{}', but got {}",
-                expected, func_name, actual
-            ),
+            format!("expected {} arguments, but got {}", expected, actual),
             span,
         )
     }
