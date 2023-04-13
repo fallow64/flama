@@ -260,6 +260,7 @@ impl Visitor for Printer {
 
 impl Printer {
     /// Prints the given program to `stdout`.
+    #[allow(dead_code)]
     pub fn print(program: Rc<Program>) -> FlamaResults<()> {
         let mut printer = Printer { indent: 0 };
 

@@ -1,6 +1,8 @@
+use base64::{engine::general_purpose, Engine};
+use flate2::{write::GzEncoder, Compression};
 // GOSH I FUCKING LOVE SERDE
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Write};
 
 use crate::parser::ast::Identifier;
 
@@ -277,6 +279,20 @@ pub fn close_repeat_bracket() -> CodeBlock {
 }
 
 // Non-serde stuff
+
+impl CodeTemplate {
+    pub fn encode(&self) -> String {
+        encode_template(serde_json::to_string(self).unwrap())
+    }
+}
+
+pub fn encode_template(raw: String) -> String {
+    // first gzip encode, then base64 encode.
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(raw.as_bytes()).unwrap();
+    let compressed = encoder.finish().unwrap();
+    general_purpose::STANDARD.encode(compressed)
+}
 
 impl From<String> for CodeValue {
     fn from(s: String) -> Self {

@@ -1,12 +1,9 @@
 use std::{
     fs,
-    io::Write,
     path::{Path, PathBuf},
     process,
     rc::Rc,
 };
-
-use flate2::{write::GzEncoder, Compression};
 
 use crate::{check, compiler::Compiler, error::FlamaResults, lexer::Lexer, logger, parser::Parser};
 
@@ -28,15 +25,9 @@ pub fn run(source: String, path_pointer: Rc<PathBuf>) {
     // unwrap_mul_or_exit(Printer::print(program.clone()));
 
     let templates = Compiler::compile_program(program);
-    let encoded_template = templates
-        .iter()
-        .map(serde_json::to_string)
-        .map(Result::unwrap)
-        .map(encode_template)
-        .collect::<Vec<_>>();
 
-    for encoded_template in encoded_template {
-        println!("{}", encoded_template);
+    for template in templates {
+        println!("{}", template.encode());
     }
 }
 
@@ -51,12 +42,4 @@ fn unwrap_mul_or_exit<T>(result: FlamaResults<T>) -> T {
             process::exit(1);
         }
     }
-}
-
-fn encode_template(raw: String) -> String {
-    // first gzip encode, then base64 encode.
-    let mut e = GzEncoder::new(Vec::new(), Compression::best());
-    e.write_all(raw.as_bytes()).unwrap();
-    let compressed = e.finish().unwrap();
-    base64::encode(compressed)
 }

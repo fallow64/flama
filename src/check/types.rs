@@ -83,7 +83,7 @@ impl From<FunctionSignature> for FunctionType {
                 .iter()
                 .map(|p| p.1.typ.clone())
                 .collect::<Vec<Type>>(),
-            return_type: value.return_type.map(|te| te.typ).clone(),
+            return_type: value.return_type.map(|te| te.typ),
         }
     }
 }
