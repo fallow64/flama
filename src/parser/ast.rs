@@ -449,7 +449,7 @@ impl From<bool> for LiteralKind {
 
 /// The differing types of variables.
 /// `Let` is the preffered type, but the others have DF correlations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VariableType {
     Save,
     Local,

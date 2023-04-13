@@ -346,6 +346,15 @@ impl CodeValue {
     }
 
     pub fn add_one(self) -> Self {
+        // make it so that %math(3+1) is just 4
+        if let CodeValue::Number { name } = &self {
+            if let Ok(num) = name.parse::<f64>() {
+                return CodeValue::Number {
+                    name: format!("{}", num + 1f64),
+                };
+            }
+        }
+
         CodeValue::Number {
             name: format!("%math({}+1)", self.as_string().unwrap()),
         }

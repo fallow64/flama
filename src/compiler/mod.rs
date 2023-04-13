@@ -515,14 +515,15 @@ impl Visitor for Compiler {
             VariableType::Let => Self::get_scope_count_var(&name),
         };
 
-        let value = if let Some(value) = &stmt.borrow().value {
-            value.accept(self)?
-        } else {
-            0.into()
-        };
-
-        self.current_stack
-            .push(builder::set_var(to_set.clone(), value));
+        if let Some(value) = &stmt.borrow().value {
+            let code_value = value.accept(self)?;
+            self.current_stack
+                .push(builder::set_var(to_set.clone(), code_value));
+        } else if stmt.borrow().kind == VariableType::Let {
+            // don't use this for global, save, and local because we might want to use data and not replace it
+            self.current_stack
+                .push(builder::set_var(to_set.clone(), 0.into()));
+        }
 
         self.environment.define(name, to_set);
 

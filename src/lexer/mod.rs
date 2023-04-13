@@ -73,13 +73,14 @@ impl Lexer {
             // special
             '"' => self.handle_string(),
             _ if c.is_ascii_digit() => Ok(self.handle_number()),
-            _ if c.is_ascii_alphabetic() => Ok(self.handle_identifier()),
+            _ if c.is_ascii_alphabetic() || c == '_' => Ok(self.handle_identifier()),
             _ => Err(self.make_error(format!("unknown character '{}'", c))),
         }
     }
 
     /// Handles a string literal. Assumes that the first " has already been consumed.
     fn handle_string(&mut self) -> FlamaResult<Token> {
+        // TODO: empty strings are not working
         while !self.is_at_end() {
             if self.peek() != '\\' && self.peek_next() == '"' {
                 self.advance();
@@ -115,7 +116,7 @@ impl Lexer {
 
     /// Handles an identifier or keyword. Assumes that the first character has already been consumed.
     fn handle_identifier(&mut self) -> Token {
-        while self.peek().is_alphanumeric() || self.peek() == '_' {
+        while self.peek().is_alphanumeric() || self.peek() == '_' || self.peek() == '%' {
             self.advance();
         }
 
