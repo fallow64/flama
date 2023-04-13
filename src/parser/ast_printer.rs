@@ -13,6 +13,8 @@ use crate::{
     },
 };
 
+use super::ast::SubscriptExpr;
+
 /// Helper struct for visting the AST and printing it.
 pub struct Printer {
     indent: usize,
@@ -116,6 +118,17 @@ impl Visitor for Printer {
             "{} = {}",
             expr.borrow().name.name,
             expr.borrow().value.accept(self)?
+        ))
+    }
+
+    fn visit_subscript_expr(
+        &mut self,
+        expr: NodePtr<SubscriptExpr>,
+    ) -> FlamaResult<Self::ExpressionOutput> {
+        Ok(format!(
+            "{}[{}]",
+            expr.borrow().object.accept(self)?,
+            expr.borrow().index.accept(self)?
         ))
     }
 

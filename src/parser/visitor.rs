@@ -3,8 +3,8 @@ use crate::error::FlamaResult;
 use super::ast::{
     AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
     ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, Item, LetStmt, ListExpr,
-    LiteralExpr, NameExpr, NodePtr, ReturnStmt, SetExpr, Statement, StructItem, UnaryExpr,
-    WhileStmt,
+    LiteralExpr, NameExpr, NodePtr, ReturnStmt, SetExpr, Statement, StructItem, SubscriptExpr,
+    UnaryExpr, WhileStmt,
 };
 
 /// A trait for visiting AST nodes.
@@ -35,6 +35,10 @@ pub trait Visitor {
     fn visit_assign_expr(
         &mut self,
         expr: NodePtr<AssignExpr>,
+    ) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_subscript_expr(
+        &mut self,
+        expr: NodePtr<SubscriptExpr>,
     ) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput>;
@@ -89,6 +93,7 @@ impl ExpressionVisitable for Expression {
             Expression::Instanciate(expr) => visitor.visit_instanciate_expr(expr.clone()),
             Expression::Call(expr) => visitor.visit_call_expr(expr.clone()),
             Expression::Assign(expr) => visitor.visit_assign_expr(expr.clone()),
+            Expression::Subscript(expr) => visitor.visit_subscript_expr(expr.clone()),
             Expression::Get(expr) => visitor.visit_get_expr(expr.clone()),
             Expression::Set(expr) => visitor.visit_set_expr(expr.clone()),
         }
@@ -185,6 +190,12 @@ impl ExpressionVisitable for NodePtr<CallExpr> {
 impl ExpressionVisitable for NodePtr<AssignExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_assign_expr(self.clone())
+    }
+}
+
+impl ExpressionVisitable for NodePtr<SubscriptExpr> {
+    fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
+        visitor.visit_subscript_expr(self.clone())
     }
 }
 

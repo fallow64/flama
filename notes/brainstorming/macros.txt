@@ -7,7 +7,9 @@ Perhaps something like this?:
 ```
 
 macro name(a: typ1, b: typ1 | typ2) {
-
+    df {
+        "player_action":"SendMessage"<>
+    }
 }
 
 ```

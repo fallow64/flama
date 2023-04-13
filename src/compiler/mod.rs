@@ -11,7 +11,7 @@ use crate::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
             EventItem, ExpressionStmt, FunctionItem, GetExpr, Identifier, IfStmt, InstanciateExpr,
             LetStmt, ListExpr, LiteralExpr, LiteralKind, NameExpr, NodePtr, Program, ReturnStmt,
-            SetExpr, StructItem, UnaryExpr, UnaryOperator, WhileStmt,
+            SetExpr, StructItem, SubscriptExpr, UnaryExpr, UnaryOperator, VariableType, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -40,6 +40,7 @@ impl Compiler {
         }
     }
 
+    /// Compile the program, returning a vector of code templates.
     pub fn compile_program(program: Rc<Program>) -> Vec<CodeTemplate> {
         let mut compiler = Compiler::new();
 
@@ -57,6 +58,7 @@ impl Compiler {
         compiler.templates
     }
 
+    /// Gets the return value of a function.
     fn get_rv() -> CodeValue {
         CodeValue::Variable {
             name: "$rv".to_string(),
@@ -64,6 +66,7 @@ impl Compiler {
         }
     }
 
+    /// Gets the arguments that are passed into a function.
     fn get_args() -> CodeValue {
         CodeValue::Variable {
             name: "$args".to_string(),
@@ -71,6 +74,7 @@ impl Compiler {
         }
     }
 
+    /// Gets the scope count.
     fn get_scope_count() -> CodeValue {
         CodeValue::Variable {
             name: "$sc".to_string(),
@@ -78,10 +82,14 @@ impl Compiler {
         }
     }
 
+    /// Returns a `SC\%var($sc)` variable.
+    /// Used for clearing the scope.
     fn get_scope_count_prefix() -> CodeValue {
         "SC\\%var($sc)".to_string().into()
     }
 
+    // Returns a `SC\%var($sc)_<var>` variable.
+    // Used for scoping purposes
     fn get_scope_count_var(var: &str) -> CodeValue {
         CodeValue::Variable {
             name: format!("SC\\%var($sc)_{}", var),
@@ -89,6 +97,7 @@ impl Compiler {
         }
     }
 
+    /// Increments `$sc` and clears the scope.
     fn push_scope(&mut self) {
         self.current_stack.push(
             BlockInfo::SetVariable {
@@ -123,6 +132,7 @@ impl Compiler {
         );
     }
 
+    /// Clears the scope and decreases `$sc`.
     fn pop_scope(&mut self) {
         self.current_stack.push(
             BlockInfo::SetVariable {
@@ -175,6 +185,7 @@ impl Visitor for Compiler {
                 name: format!("%math(0-{})", name),
             }),
             (UnaryOperator::Not, CodeValue::Number { name }) => Ok(CodeValue::Number {
+                // yippee no order of operations
                 name: format!("%math(0-1*{}+1)", name),
             }),
             _ => unreachable!(),
@@ -213,6 +224,7 @@ impl Visitor for Compiler {
         }
 
         if result_action == "==" {
+            // TODO: This is a hack, but it works for now
             result_action = "=".to_string();
         }
 
@@ -335,6 +347,29 @@ impl Visitor for Compiler {
             .push(builder::set_var(name, value.clone()));
 
         Ok(value)
+    }
+
+    fn visit_subscript_expr(
+        &mut self,
+        expr: NodePtr<SubscriptExpr>,
+    ) -> FlamaResult<Self::ExpressionOutput> {
+        let result = self.namer.get_rand_var("subscript");
+        let object = expr.borrow().object.accept(self)?;
+        let index = expr.borrow().index.accept(self)?;
+        self.current_stack.push(
+            BlockInfo::SetVariable {
+                args: vec![
+                    result.clone().into_item(0),
+                    object.into_item(1),
+                    index.add_one().into_item(2),
+                ]
+                .into(),
+                action: "GetListValue".to_string(),
+            }
+            .into(),
+        );
+
+        Ok(result)
     }
 
     fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
@@ -463,7 +498,22 @@ impl Visitor for Compiler {
     fn visit_let_stmt(&mut self, stmt: NodePtr<LetStmt>) -> FlamaResult<Self::StatementOutput> {
         let name = stmt.borrow().name.name.clone();
 
-        let to_set = Self::get_scope_count_var(&name);
+        // is this really the best way to do this?
+        let to_set = match stmt.borrow().kind {
+            VariableType::Save => CodeValue::Variable {
+                name: name.clone(),
+                scope: VariableScope::Save,
+            },
+            VariableType::Local => CodeValue::Variable {
+                name: name.clone(),
+                scope: VariableScope::Local,
+            },
+            VariableType::Game => CodeValue::Variable {
+                name: name.clone(),
+                scope: VariableScope::Global,
+            },
+            VariableType::Let => Self::get_scope_count_var(&name),
+        };
 
         let value = if let Some(value) = &stmt.borrow().value {
             value.accept(self)?

@@ -9,7 +9,7 @@ use crate::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
             EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt,
             ListExpr, LiteralExpr, NameExpr, NodePtr, Program, ReturnStmt, SetExpr, StructItem,
-            UnaryExpr, UnaryOperator, WhileStmt,
+            SubscriptExpr, UnaryExpr, UnaryOperator, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -308,6 +308,32 @@ impl Visitor for TypeChecker {
         expr.borrow().object.accept(self)?;
         expr.borrow().value.accept(self)?;
         todo!()
+    }
+
+    fn visit_subscript_expr(
+        &mut self,
+        expr: NodePtr<SubscriptExpr>,
+    ) -> FlamaResult<Self::ExpressionOutput> {
+        let object_type = expr.borrow().object.accept(self)?;
+        let index_type = expr.borrow().index.accept(self)?;
+
+        if index_type != Type::Number {
+            return Err(self.expected_error(&Type::Number, &index_type, expr.borrow().init.span));
+        }
+
+        let typ = match object_type {
+            Type::List(inner) => *inner,
+            _ => {
+                return Err(self.expected_error(
+                    &Type::List(Box::new(Type::Any)),
+                    &object_type,
+                    expr.borrow().init.span,
+                ))
+            }
+        };
+
+        expr.borrow_mut().typ = Some(typ.clone());
+        Ok(typ)
     }
 
     fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput> {

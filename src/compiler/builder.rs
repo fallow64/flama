@@ -344,6 +344,12 @@ impl CodeValue {
     pub fn into_item(self, slot: i32) -> CodeItem {
         CodeItem { item: self, slot }
     }
+
+    pub fn add_one(self) -> Self {
+        CodeValue::Number {
+            name: format!("%math({}+1)", self.as_string().unwrap()),
+        }
+    }
 }
 
 impl From<Vec<CodeItem>> for Args {

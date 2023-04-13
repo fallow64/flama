@@ -14,7 +14,7 @@ use self::ast::{
     new_node_ptr, AssignExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
     ExpressionStmt, FunctionItem, FunctionSignature, GetExpr, Identifier, IfStmt, InstanciateExpr,
     Item, LetStmt, ListExpr, LiteralExpr, NameExpr, Program, ReturnStmt, SetExpr, Statement,
-    StructItem, TypeExpression, UnaryExpr, VariableType, WhileStmt,
+    StructItem, SubscriptExpr, TypeExpression, UnaryExpr, VariableType, WhileStmt,
 };
 
 pub mod ast;
@@ -601,7 +601,7 @@ impl Parser {
         }
     }
 
-    /// `<primary> ( ( "(" <expression>* ")" ) | ("." <identifier> ) )*`
+    /// `<primary> ( ( "(" <expression>* ")" ) | ("." <identifier> ) | ("[" <expression> "]") )*`
     fn parse_call(&mut self) -> FlamaResult<Expression> {
         let mut expr = self.parse_instanciate()?;
 
@@ -628,6 +628,19 @@ impl Parser {
                     init,
                     callee: expr,
                     args,
+                    typ: None,
+                }));
+            } else if self.is_match(TokenType::LBracket) {
+                let init = self.consume(TokenType::LBracket)?;
+
+                let index = self.parse_expression()?;
+
+                self.consume(TokenType::RBracket)?;
+
+                expr = Expression::Subscript(new_node_ptr(SubscriptExpr {
+                    init,
+                    object: expr,
+                    index,
                     typ: None,
                 }));
             } else {

@@ -38,6 +38,7 @@ pub enum Expression {
     Instanciate(NodePtr<InstanciateExpr>),
     Call(NodePtr<CallExpr>),
     Assign(NodePtr<AssignExpr>),
+    Subscript(NodePtr<SubscriptExpr>),
     Get(NodePtr<GetExpr>),
     Set(NodePtr<SetExpr>),
 }
@@ -101,6 +102,14 @@ pub struct AssignExpr {
     pub init: Token,
     pub name: Identifier,
     pub value: Expression,
+    pub typ: Option<Type>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptExpr {
+    pub init: Token,
+    pub object: Expression,
+    pub index: Expression,
     pub typ: Option<Type>,
 }
 
@@ -248,6 +257,7 @@ impl Expression {
             Expression::Instanciate(expr) => expr.borrow().typ.clone(),
             Expression::Call(expr) => expr.borrow().typ.clone(),
             Expression::Assign(expr) => expr.borrow().typ.clone(),
+            Expression::Subscript(expr) => expr.borrow().typ.clone(),
             Expression::Get(expr) => expr.borrow().typ.clone(),
             Expression::Set(expr) => expr.borrow().typ.clone(),
         }
@@ -265,6 +275,7 @@ impl Spanned for Expression {
             Expression::Instanciate(expr) => expr.borrow().init.span,
             Expression::Call(expr) => expr.borrow().init.span,
             Expression::Assign(expr) => expr.borrow().init.span,
+            Expression::Subscript(expr) => expr.borrow().init.span,
             Expression::Get(expr) => expr.borrow().init.span,
             Expression::Set(expr) => expr.borrow().init.span,
         }
