@@ -23,6 +23,12 @@ pub enum Type {
     None,
 }
 
+impl Type {
+    pub fn is_primitive(&self) -> bool {
+        true // TODO: implement when classes are added
+    }
+}
+
 impl From<LiteralKind> for Type {
     fn from(kind: LiteralKind) -> Self {
         match kind {

@@ -1,4 +1,4 @@
-|                               Operator | Type                                                          | Associativity                     |
+|                               Operator | Name                                                          | Associativity                     |
 | -------------------------------------: | :------------------------------------------------------------ | --------------------------------- |
 |                             `type { }` | Instanciate                                                   | LTR                               |
 |            `()` <br /> `[]` <br /> `.` | Call <br/> Subscript <br/> Get                                | LTR <br/> LTR <br/> LTR           |

@@ -9,7 +9,7 @@ use crate::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
             EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt,
             ListExpr, LiteralExpr, NameExpr, NodePtr, Program, ReturnStmt, SetExpr, StructItem,
-            SubscriptExpr, UnaryExpr, UnaryOperator, WhileStmt,
+            SubscriptExpr, UnaryExpr, UnaryOperator, VariableType, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
     },
@@ -400,7 +400,7 @@ impl Visitor for TypeChecker {
         let value_type = if let Some(value) = &stmt.borrow().value {
             value.accept(self)?
         } else {
-            Type::default()
+            Type::Void
         };
 
         if value_type != self.return_type {
@@ -437,7 +437,20 @@ impl Visitor for TypeChecker {
                 }
             }
             (None, None) => return Err(self.cannot_infer_error(&name, stmt.borrow().init.span)),
-            (Some(type_annotation), None) => type_annotation,
+            (Some(type_annotation), None) => {
+                // other types than `let` can be uninitialized because storing data
+                if type_annotation.is_primitive() && stmt.borrow().kind == VariableType::Let {
+                    return Err(self.error(
+                        format!(
+                            "type '{}' is a primitive/struct, and must be initialized with a value",
+                            type_annotation
+                        ),
+                        stmt.borrow().type_annotation.as_ref().unwrap().span(),
+                    ));
+                }
+
+                type_annotation
+            }
             (None, Some(value_type)) => value_type,
         };
 
@@ -476,7 +489,7 @@ impl Visitor for TypeChecker {
             .return_type
             .clone()
             .map(|te| te.typ)
-            .unwrap_or(Type::default());
+            .unwrap_or(Type::Void);
         self.return_type = self.type_identifier_to(typ)?;
 
         for param in &decl.borrow().signature.params {
@@ -489,7 +502,7 @@ impl Visitor for TypeChecker {
         for stmt in &decl.borrow().stmts {
             stmt.accept(self)?;
         }
-        self.return_type = Type::default();
+
         self.environment.pop();
 
         Ok(())
@@ -506,7 +519,7 @@ impl TypeChecker {
             environment: Environment::new(),
             typedefs: Environment::new(),
             source_path,
-            return_type: Type::default(),
+            return_type: Type::Void,
         }
     }
 
