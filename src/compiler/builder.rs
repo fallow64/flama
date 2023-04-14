@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose, Engine};
 use flate2::{write::GzEncoder, Compression};
 // GOSH I FUCKING LOVE SERDE
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use std::{collections::HashMap, io::Write};
 
 use crate::parser::ast::Identifier;
@@ -41,13 +41,45 @@ pub enum BlockInfo {
     #[serde(rename = "start_process")]
     StartProcess { args: Args, data: String },
     #[serde(rename = "if_var")]
-    IfVariable { args: Args, action: String },
+    IfVariable {
+        args: Args,
+        action: String,
+        #[serde(
+            serialize_with = "serialize_inverted",
+            skip_serializing_if = "is_false"
+        )]
+        inverted: bool,
+    },
     #[serde(rename = "if_player")]
-    IfPlayer { args: Args, action: String },
+    IfPlayer {
+        args: Args,
+        action: String,
+        #[serde(
+            serialize_with = "serialize_inverted",
+            skip_serializing_if = "is_false"
+        )]
+        inverted: bool,
+    },
     #[serde(rename = "if_game")]
-    IfGame { args: Args, action: String },
+    IfGame {
+        args: Args,
+        action: String,
+        #[serde(
+            serialize_with = "serialize_inverted",
+            skip_serializing_if = "is_false"
+        )]
+        inverted: bool,
+    },
     #[serde(rename = "if_entity")]
-    IfEntity { args: Args, action: String },
+    IfEntity {
+        args: Args,
+        action: String,
+        #[serde(
+            serialize_with = "serialize_inverted",
+            skip_serializing_if = "is_false"
+        )]
+        inverted: bool,
+    },
     #[serde(rename = "else")]
     Else,
     #[serde(rename = "set_var")]
@@ -66,6 +98,11 @@ pub enum BlockInfo {
         action: String,
         #[serde(rename = "subAction")]
         sub_action: Option<String>,
+        #[serde(
+            serialize_with = "serialize_inverted",
+            skip_serializing_if = "is_false"
+        )]
+        inverted: bool,
     },
     // TODO: Select, NOT
 }
@@ -204,6 +241,7 @@ pub fn if_var(var: CodeValue, value: CodeValue) -> CodeBlock {
                 ],
             },
             action: "=".to_string(),
+            inverted: false,
         }),
     }
 }
@@ -365,4 +403,21 @@ impl From<Vec<CodeItem>> for Args {
     fn from(v: Vec<CodeItem>) -> Self {
         Args { items: v }
     }
+}
+
+// utility for serializing
+
+fn serialize_inverted<S>(inverted: &bool, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if *inverted {
+        serializer.serialize_str("NOT")
+    } else {
+        serializer.serialize_none()
+    }
+}
+
+fn is_false(val: &bool) -> bool {
+    !*val
 }

@@ -60,7 +60,6 @@ impl Lexer {
             ':' => Ok(self.make_spanned(TokenType::Colon)),
             ';' => Ok(self.make_spanned(TokenType::SemiColon)),
             '.' => {
-                // handle ellipsis
                 if self.peek() == '.' && self.peek_next() == '.' {
                     self.advance();
                     self.advance();
@@ -80,14 +79,15 @@ impl Lexer {
 
     /// Handles a string literal. Assumes that the first " has already been consumed.
     fn handle_string(&mut self) -> FlamaResult<Token> {
-        // TODO: empty strings are not working
+        let mut escaped = false;
         while !self.is_at_end() {
-            if self.peek() != '\\' && self.peek_next() == '"' {
-                self.advance();
-                self.advance(); // consume the "
+            let consumed = self.advance();
+
+            if consumed == '"' && !escaped {
                 return Ok(self.make_spanned(TokenType::String));
             }
-            self.advance();
+
+            escaped = consumed == '\\';
         }
 
         Err(self.make_error("unterminated string".to_string()))

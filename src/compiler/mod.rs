@@ -233,6 +233,7 @@ impl Visitor for Compiler {
             BlockInfo::IfVariable {
                 args: vec![val1.into_item(0), val2.into_item(1)].into(),
                 action: result_action,
+                inverted: false,
             }
             .into(),
         );
@@ -440,6 +441,7 @@ impl Visitor for Compiler {
                 },
                 action: "While".to_string(),
                 sub_action: Some("=".to_string()),
+                inverted: false,
             }
             .into(),
         );
