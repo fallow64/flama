@@ -3,7 +3,7 @@ use crate::error::FlamaResult;
 use super::ast::{
     AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem, Expression,
     ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, Item, LetStmt, ListExpr,
-    LiteralExpr, NameExpr, NodePtr, ReturnStmt, SetExpr, Statement, StructItem, SubscriptExpr,
+    LiteralExpr, NameExpr, Node, ReturnStmt, SetExpr, Statement, StructItem, SubscriptExpr,
     UnaryExpr, WhileStmt,
 };
 
@@ -15,56 +15,56 @@ pub trait Visitor {
     type StatementOutput;
     type ItemOutput;
 
-    fn visit_unary_expr(&mut self, expr: NodePtr<UnaryExpr>)
+    fn visit_unary_expr(&mut self, expr: Node<UnaryExpr>)
         -> FlamaResult<Self::ExpressionOutput>;
     fn visit_binary_expr(
         &mut self,
-        expr: NodePtr<BinaryExpr>,
+        expr: Node<BinaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_literal_expr(
         &mut self,
-        expr: NodePtr<LiteralExpr>,
+        expr: Node<LiteralExpr>,
     ) -> FlamaResult<Self::ExpressionOutput>;
-    fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput>;
-    fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_list_expr(&mut self, expr: Node<ListExpr>) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_name_expr(&mut self, expr: Node<NameExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_instanciate_expr(
         &mut self,
-        expr: NodePtr<InstanciateExpr>,
+        expr: Node<InstanciateExpr>,
     ) -> FlamaResult<Self::ExpressionOutput>;
-    fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_call_expr(&mut self, expr: Node<CallExpr>) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_assign_expr(
         &mut self,
-        expr: NodePtr<AssignExpr>,
+        expr: Node<AssignExpr>,
     ) -> FlamaResult<Self::ExpressionOutput>;
     fn visit_subscript_expr(
         &mut self,
-        expr: NodePtr<SubscriptExpr>,
+        expr: Node<SubscriptExpr>,
     ) -> FlamaResult<Self::ExpressionOutput>;
-    fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput>;
-    fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_get_expr(&mut self, expr: Node<GetExpr>) -> FlamaResult<Self::ExpressionOutput>;
+    fn visit_set_expr(&mut self, expr: Node<SetExpr>) -> FlamaResult<Self::ExpressionOutput>;
 
-    fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput>;
-    fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput>;
-    fn visit_while_stmt(&mut self, stmt: NodePtr<WhileStmt>) -> FlamaResult<Self::StatementOutput>;
+    fn visit_block_stmt(&mut self, stmt: Node<BlockStmt>) -> FlamaResult<Self::StatementOutput>;
+    fn visit_if_stmt(&mut self, stmt: Node<IfStmt>) -> FlamaResult<Self::StatementOutput>;
+    fn visit_while_stmt(&mut self, stmt: Node<WhileStmt>) -> FlamaResult<Self::StatementOutput>;
     fn visit_continue_stmt(
         &mut self,
-        stmt: NodePtr<ContinueStmt>,
+        stmt: Node<ContinueStmt>,
     ) -> FlamaResult<Self::StatementOutput>;
-    fn visit_break_stmt(&mut self, stmt: NodePtr<BreakStmt>) -> FlamaResult<Self::StatementOutput>;
+    fn visit_break_stmt(&mut self, stmt: Node<BreakStmt>) -> FlamaResult<Self::StatementOutput>;
     fn visit_return_stmt(
         &mut self,
-        stmt: NodePtr<ReturnStmt>,
+        stmt: Node<ReturnStmt>,
     ) -> FlamaResult<Self::StatementOutput>;
-    fn visit_let_stmt(&mut self, stmt: NodePtr<LetStmt>) -> FlamaResult<Self::StatementOutput>;
+    fn visit_let_stmt(&mut self, stmt: Node<LetStmt>) -> FlamaResult<Self::StatementOutput>;
     fn visit_expression_stmt(
         &mut self,
-        stmt: NodePtr<ExpressionStmt>,
+        stmt: Node<ExpressionStmt>,
     ) -> FlamaResult<Self::StatementOutput>;
 
-    fn visit_event_item(&mut self, decl: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput>;
-    fn visit_function_item(&mut self, decl: NodePtr<FunctionItem>)
+    fn visit_event_item(&mut self, decl: Node<EventItem>) -> FlamaResult<Self::ItemOutput>;
+    fn visit_function_item(&mut self, decl: Node<FunctionItem>)
         -> FlamaResult<Self::ItemOutput>;
-    fn visit_struct_item(&mut self, decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput>;
+    fn visit_struct_item(&mut self, decl: Node<StructItem>) -> FlamaResult<Self::ItemOutput>;
 }
 
 /// Double dispatch for visiting expression AST nodes.
@@ -100,7 +100,7 @@ impl ExpressionVisitable for Expression {
     }
 }
 
-impl ExpressionVisitable for NodePtr<Expression> {
+impl ExpressionVisitable for Node<Expression> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         self.borrow().accept(visitor)
     }
@@ -121,7 +121,7 @@ impl StatementVisitable for Statement {
     }
 }
 
-impl StatementVisitable for NodePtr<Statement> {
+impl StatementVisitable for Node<Statement> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         self.borrow().accept(visitor)
     }
@@ -137,7 +137,7 @@ impl ItemVisitable for Item {
     }
 }
 
-impl ItemVisitable for NodePtr<Item> {
+impl ItemVisitable for Node<Item> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         self.borrow().accept(visitor)
     }
@@ -145,133 +145,133 @@ impl ItemVisitable for NodePtr<Item> {
 
 // ------------------------ VISITOR IMPLEMENTATIONS --------------------------
 
-impl ExpressionVisitable for NodePtr<UnaryExpr> {
+impl ExpressionVisitable for Node<UnaryExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_unary_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<BinaryExpr> {
+impl ExpressionVisitable for Node<BinaryExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_binary_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<LiteralExpr> {
+impl ExpressionVisitable for Node<LiteralExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_literal_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<ListExpr> {
+impl ExpressionVisitable for Node<ListExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_list_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<NameExpr> {
+impl ExpressionVisitable for Node<NameExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_name_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<InstanciateExpr> {
+impl ExpressionVisitable for Node<InstanciateExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_instanciate_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<CallExpr> {
+impl ExpressionVisitable for Node<CallExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_call_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<AssignExpr> {
+impl ExpressionVisitable for Node<AssignExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_assign_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<SubscriptExpr> {
+impl ExpressionVisitable for Node<SubscriptExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_subscript_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<GetExpr> {
+impl ExpressionVisitable for Node<GetExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_get_expr(self.clone())
     }
 }
 
-impl ExpressionVisitable for NodePtr<SetExpr> {
+impl ExpressionVisitable for Node<SetExpr> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ExpressionOutput> {
         visitor.visit_set_expr(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<BlockStmt> {
+impl StatementVisitable for Node<BlockStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_block_stmt(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<IfStmt> {
+impl StatementVisitable for Node<IfStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_if_stmt(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<WhileStmt> {
+impl StatementVisitable for Node<WhileStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_while_stmt(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<ContinueStmt> {
+impl StatementVisitable for Node<ContinueStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_continue_stmt(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<BreakStmt> {
+impl StatementVisitable for Node<BreakStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_break_stmt(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<ReturnStmt> {
+impl StatementVisitable for Node<ReturnStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_return_stmt(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<LetStmt> {
+impl StatementVisitable for Node<LetStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_let_stmt(self.clone())
     }
 }
 
-impl StatementVisitable for NodePtr<ExpressionStmt> {
+impl StatementVisitable for Node<ExpressionStmt> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::StatementOutput> {
         visitor.visit_expression_stmt(self.clone())
     }
 }
 
-impl ItemVisitable for NodePtr<EventItem> {
+impl ItemVisitable for Node<EventItem> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         visitor.visit_event_item(self.clone())
     }
 }
 
-impl ItemVisitable for NodePtr<FunctionItem> {
+impl ItemVisitable for Node<FunctionItem> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         visitor.visit_function_item(self.clone())
     }
 }
 
-impl ItemVisitable for NodePtr<StructItem> {
+impl ItemVisitable for Node<StructItem> {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> FlamaResult<V::ItemOutput> {
         visitor.visit_struct_item(self.clone())
     }

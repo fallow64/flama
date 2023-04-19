@@ -10,7 +10,7 @@ use crate::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
             EventItem, ExpressionStmt, FunctionItem, GetExpr, Identifier, IfStmt, InstanciateExpr,
-            LetStmt, ListExpr, LiteralExpr, LiteralKind, NameExpr, NodePtr, Program, ReturnStmt,
+            LetStmt, ListExpr, LiteralExpr, LiteralKind, NameExpr, Node, Program, ReturnStmt,
             SetExpr, StructItem, SubscriptExpr, UnaryExpr, UnaryOperator, VariableType, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
@@ -176,7 +176,7 @@ impl Visitor for Compiler {
 
     fn visit_unary_expr(
         &mut self,
-        expr: NodePtr<UnaryExpr>,
+        expr: Node<UnaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let val = expr.accept(self)?;
         match (&expr.borrow().operator, val) {
@@ -194,7 +194,7 @@ impl Visitor for Compiler {
 
     fn visit_binary_expr(
         &mut self,
-        expr: NodePtr<BinaryExpr>,
+        expr: Node<BinaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let typ1 = expr.borrow().left.get_type().unwrap();
         let typ2 = expr.borrow().right.get_type().unwrap();
@@ -252,7 +252,7 @@ impl Visitor for Compiler {
 
     fn visit_literal_expr(
         &mut self,
-        expr: NodePtr<LiteralExpr>,
+        expr: Node<LiteralExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         match &expr.borrow().kind {
             LiteralKind::Number(n) => Ok(CodeValue::Number {
@@ -269,7 +269,7 @@ impl Visitor for Compiler {
         }
     }
 
-    fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_list_expr(&mut self, expr: Node<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let list_var = self.namer.get_rand_var("list");
         let mut values = vec![list_var.clone().into_item(0)];
         for (i, element) in expr.borrow().elements.iter().enumerate() {
@@ -287,7 +287,7 @@ impl Visitor for Compiler {
         Ok(list_var)
     }
 
-    fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_name_expr(&mut self, expr: Node<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
         Ok(self
             .environment
             .get(&expr.borrow().name.name)
@@ -297,12 +297,12 @@ impl Visitor for Compiler {
 
     fn visit_instanciate_expr(
         &mut self,
-        _expr: NodePtr<InstanciateExpr>,
+        _expr: Node<InstanciateExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         todo!()
     }
 
-    fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_call_expr(&mut self, expr: Node<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let mut args = vec![];
         for arg in expr.borrow().args.iter() {
             args.push((arg.accept(self)?, arg.get_type().unwrap()));
@@ -335,7 +335,7 @@ impl Visitor for Compiler {
 
     fn visit_assign_expr(
         &mut self,
-        expr: NodePtr<AssignExpr>,
+        expr: Node<AssignExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let value = expr.borrow().value.accept(self)?;
         let name = self
@@ -352,7 +352,7 @@ impl Visitor for Compiler {
 
     fn visit_subscript_expr(
         &mut self,
-        expr: NodePtr<SubscriptExpr>,
+        expr: Node<SubscriptExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let result = self.namer.get_rand_var("subscript");
         let object = expr.borrow().object.accept(self)?;
@@ -373,7 +373,7 @@ impl Visitor for Compiler {
         Ok(result)
     }
 
-    fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_get_expr(&mut self, expr: Node<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let result = self.namer.get_rand_var("get");
         let object = expr.borrow().object.accept(self)?;
         self.current_stack.push(
@@ -392,11 +392,11 @@ impl Visitor for Compiler {
         Ok(result)
     }
 
-    fn visit_set_expr(&mut self, _: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_set_expr(&mut self, _: Node<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
         todo!()
     }
 
-    fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_block_stmt(&mut self, stmt: Node<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
         self.push_scope();
 
         for statement in &stmt.borrow().statements {
@@ -408,7 +408,7 @@ impl Visitor for Compiler {
         Ok(())
     }
 
-    fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_if_stmt(&mut self, stmt: Node<IfStmt>) -> FlamaResult<Self::StatementOutput> {
         let condition = stmt.borrow().condition.accept(self)?;
 
         self.current_stack
@@ -428,7 +428,7 @@ impl Visitor for Compiler {
         Ok(())
     }
 
-    fn visit_while_stmt(&mut self, stmt: NodePtr<WhileStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_while_stmt(&mut self, stmt: Node<WhileStmt>) -> FlamaResult<Self::StatementOutput> {
         let condition = stmt.borrow().condition.accept(self)?;
 
         self.current_stack.push(
@@ -455,7 +455,7 @@ impl Visitor for Compiler {
 
     fn visit_continue_stmt(
         &mut self,
-        _: NodePtr<ContinueStmt>,
+        _: Node<ContinueStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         self.current_stack.push(
             BlockInfo::Control {
@@ -468,7 +468,7 @@ impl Visitor for Compiler {
         Ok(())
     }
 
-    fn visit_break_stmt(&mut self, _: NodePtr<BreakStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_break_stmt(&mut self, _: Node<BreakStmt>) -> FlamaResult<Self::StatementOutput> {
         self.current_stack.push(
             BlockInfo::Control {
                 args: Args::default(),
@@ -482,7 +482,7 @@ impl Visitor for Compiler {
 
     fn visit_return_stmt(
         &mut self,
-        stmt: NodePtr<ReturnStmt>,
+        stmt: Node<ReturnStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         if let Some(value) = &stmt.borrow().value {
             let value = value.accept(self)?;
@@ -497,7 +497,7 @@ impl Visitor for Compiler {
         Ok(())
     }
 
-    fn visit_let_stmt(&mut self, stmt: NodePtr<LetStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_let_stmt(&mut self, stmt: Node<LetStmt>) -> FlamaResult<Self::StatementOutput> {
         let name = stmt.borrow().name.name.clone();
 
         // is this really the best way to do this?
@@ -534,14 +534,14 @@ impl Visitor for Compiler {
 
     fn visit_expression_stmt(
         &mut self,
-        stmt: NodePtr<ExpressionStmt>,
+        stmt: Node<ExpressionStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         stmt.borrow().expression.accept(self)?;
 
         Ok(())
     }
 
-    fn visit_event_item(&mut self, decl: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput> {
+    fn visit_event_item(&mut self, decl: Node<EventItem>) -> FlamaResult<Self::ItemOutput> {
         self.current_stack.push(
             BlockInfo::PlayerEvent {
                 args: Args::default(),
@@ -560,7 +560,7 @@ impl Visitor for Compiler {
 
     fn visit_function_item(
         &mut self,
-        decl: NodePtr<FunctionItem>,
+        decl: Node<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
         self.current_stack.push(CodeBlock {
             id: "block".to_string(),
@@ -605,7 +605,7 @@ impl Visitor for Compiler {
         Ok(())
     }
 
-    fn visit_struct_item(&mut self, _: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput> {
+    fn visit_struct_item(&mut self, _: Node<StructItem>) -> FlamaResult<Self::ItemOutput> {
         Ok(())
     }
 }

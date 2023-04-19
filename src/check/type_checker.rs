@@ -8,7 +8,7 @@ use crate::{
         ast::{
             AssignExpr, BinaryExpr, BinaryOperator, BlockStmt, BreakStmt, CallExpr, ContinueStmt,
             EventItem, ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt,
-            ListExpr, LiteralExpr, NameExpr, NodePtr, Program, ReturnStmt, SetExpr, StructItem,
+            ListExpr, LiteralExpr, NameExpr, Node, Program, ReturnStmt, SetExpr, StructItem,
             SubscriptExpr, UnaryExpr, UnaryOperator, VariableType, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
@@ -35,7 +35,7 @@ impl Visitor for TypeChecker {
 
     fn visit_unary_expr(
         &mut self,
-        expr: NodePtr<UnaryExpr>,
+        expr: Node<UnaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let right_type = expr.borrow().right.accept(self)?;
 
@@ -56,7 +56,7 @@ impl Visitor for TypeChecker {
 
     fn visit_binary_expr(
         &mut self,
-        expr: NodePtr<BinaryExpr>,
+        expr: Node<BinaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let left_type = expr.borrow().left.accept(self)?;
         let right_type = expr.borrow().right.accept(self)?;
@@ -105,7 +105,7 @@ impl Visitor for TypeChecker {
 
     fn visit_literal_expr(
         &mut self,
-        expr: NodePtr<LiteralExpr>,
+        expr: Node<LiteralExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let typ: Type = expr.borrow().kind.clone().into();
 
@@ -113,7 +113,7 @@ impl Visitor for TypeChecker {
         Ok(typ)
     }
 
-    fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_list_expr(&mut self, expr: Node<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let typ = if expr.borrow().elements.is_empty() {
             Type::List(Box::new(Type::Any))
         } else {
@@ -140,7 +140,7 @@ impl Visitor for TypeChecker {
         Ok(typ)
     }
 
-    fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_name_expr(&mut self, expr: Node<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let name = expr.borrow().name.clone();
         let value_type = self.environment.get(&name.name);
 
@@ -155,7 +155,7 @@ impl Visitor for TypeChecker {
 
     fn visit_instanciate_expr(
         &mut self,
-        expr: NodePtr<InstanciateExpr>,
+        expr: Node<InstanciateExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let inst_name = expr.borrow().name.clone();
 
@@ -211,7 +211,7 @@ impl Visitor for TypeChecker {
         Ok(self.typedefs.get(&inst_name.name).cloned().unwrap())
     }
 
-    fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_call_expr(&mut self, expr: Node<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let callee_type = expr.borrow().callee.accept(self)?;
 
         let typ = match callee_type {
@@ -258,7 +258,7 @@ impl Visitor for TypeChecker {
 
     fn visit_assign_expr(
         &mut self,
-        expr: NodePtr<AssignExpr>,
+        expr: Node<AssignExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let value_type = expr.borrow().value.accept(self)?;
         let var_type = self.environment.get(&expr.borrow().name.name);
@@ -271,7 +271,7 @@ impl Visitor for TypeChecker {
         }
     }
 
-    fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_get_expr(&mut self, expr: Node<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let object_type = expr.borrow().object.accept(self)?;
 
         let typ = match object_type {
@@ -304,7 +304,7 @@ impl Visitor for TypeChecker {
         Ok(typ)
     }
 
-    fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_set_expr(&mut self, expr: Node<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
         expr.borrow().object.accept(self)?;
         expr.borrow().value.accept(self)?;
         todo!()
@@ -312,7 +312,7 @@ impl Visitor for TypeChecker {
 
     fn visit_subscript_expr(
         &mut self,
-        expr: NodePtr<SubscriptExpr>,
+        expr: Node<SubscriptExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let object_type = expr.borrow().object.accept(self)?;
         let index_type = expr.borrow().index.accept(self)?;
@@ -336,7 +336,7 @@ impl Visitor for TypeChecker {
         Ok(typ)
     }
 
-    fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_block_stmt(&mut self, stmt: Node<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
         self.environment.push();
         for statement in &stmt.borrow().statements {
             statement.accept(self)?;
@@ -346,7 +346,7 @@ impl Visitor for TypeChecker {
         Ok(())
     }
 
-    fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_if_stmt(&mut self, stmt: Node<IfStmt>) -> FlamaResult<Self::StatementOutput> {
         let condition_type = stmt.borrow().condition.accept(self)?;
         if !matches!(condition_type, Type::Boolean) {
             return Err(self.expected_error(
@@ -364,7 +364,7 @@ impl Visitor for TypeChecker {
         Ok(())
     }
 
-    fn visit_while_stmt(&mut self, stmt: NodePtr<WhileStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_while_stmt(&mut self, stmt: Node<WhileStmt>) -> FlamaResult<Self::StatementOutput> {
         let condition_type = stmt.borrow().condition.accept(self)?;
         if !matches!(condition_type, Type::Boolean) {
             return Err(self.expected_error(
@@ -381,21 +381,21 @@ impl Visitor for TypeChecker {
 
     fn visit_continue_stmt(
         &mut self,
-        _: NodePtr<ContinueStmt>,
+        _: Node<ContinueStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         Ok(())
     }
 
     fn visit_break_stmt(
         &mut self,
-        _stmt: NodePtr<BreakStmt>,
+        _stmt: Node<BreakStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         Ok(())
     }
 
     fn visit_return_stmt(
         &mut self,
-        stmt: NodePtr<ReturnStmt>,
+        stmt: Node<ReturnStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         let value_type = if let Some(value) = &stmt.borrow().value {
             value.accept(self)?
@@ -414,7 +414,7 @@ impl Visitor for TypeChecker {
         Ok(())
     }
 
-    fn visit_let_stmt(&mut self, stmt: NodePtr<LetStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_let_stmt(&mut self, stmt: Node<LetStmt>) -> FlamaResult<Self::StatementOutput> {
         let type_annotation = stmt.borrow().type_annotation.clone().map(|t| t.typ);
         let name = stmt.borrow().name.name.clone();
 
@@ -465,20 +465,20 @@ impl Visitor for TypeChecker {
 
     fn visit_expression_stmt(
         &mut self,
-        stmt: NodePtr<ExpressionStmt>,
+        stmt: Node<ExpressionStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         stmt.borrow().expression.accept(self)?;
         Ok(())
     }
 
-    fn visit_event_item(&mut self, decl: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput> {
+    fn visit_event_item(&mut self, decl: Node<EventItem>) -> FlamaResult<Self::ItemOutput> {
         decl.borrow().body.accept(self)?;
         Ok(())
     }
 
     fn visit_function_item(
         &mut self,
-        decl: NodePtr<FunctionItem>,
+        decl: Node<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
         // signature into scope already handled in Self::parse()
 
@@ -508,7 +508,7 @@ impl Visitor for TypeChecker {
         Ok(())
     }
 
-    fn visit_struct_item(&mut self, _decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput> {
+    fn visit_struct_item(&mut self, _decl: Node<StructItem>) -> FlamaResult<Self::ItemOutput> {
         Ok(())
     }
 }

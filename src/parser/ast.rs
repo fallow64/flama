@@ -10,18 +10,18 @@ use crate::{
     lexer::token::{Span, Spanned, Token, TokenType},
 };
 
-pub type NodePtr<T> = Rc<RefCell<T>>;
+pub type Node<T> = Rc<RefCell<T>>;
 
 pub struct Program {
     pub signatures: Vec<FunctionSignature>,
-    pub typedefs: Vec<NodePtr<StructItem>>,
+    pub typedefs: Vec<Node<StructItem>>,
     pub items: Vec<Item>,
     pub path: Rc<PathBuf>,
 }
 
 // Creates a new NodePtr<T>. This is a convenience function incase
 // we change the implementation of NodePtr<T> in the future.
-pub fn new_node_ptr<T>(val: T) -> NodePtr<T> {
+pub fn new_node_ptr<T>(val: T) -> Node<T> {
     Rc::new(RefCell::new(val))
 }
 
@@ -30,17 +30,17 @@ pub fn new_node_ptr<T>(val: T) -> NodePtr<T> {
 /// An expression is a node in the AST that can be evaluated to a value.
 #[derive(Debug, Clone)]
 pub enum Expression {
-    Unary(NodePtr<UnaryExpr>),
-    Binary(NodePtr<BinaryExpr>),
-    Literal(NodePtr<LiteralExpr>),
-    List(NodePtr<ListExpr>),
-    Name(NodePtr<NameExpr>),
-    Instanciate(NodePtr<InstanciateExpr>),
-    Call(NodePtr<CallExpr>),
-    Assign(NodePtr<AssignExpr>),
-    Subscript(NodePtr<SubscriptExpr>),
-    Get(NodePtr<GetExpr>),
-    Set(NodePtr<SetExpr>),
+    Unary(Node<UnaryExpr>),
+    Binary(Node<BinaryExpr>),
+    Literal(Node<LiteralExpr>),
+    List(Node<ListExpr>),
+    Name(Node<NameExpr>),
+    Instanciate(Node<InstanciateExpr>),
+    Call(Node<CallExpr>),
+    Assign(Node<AssignExpr>),
+    Subscript(Node<SubscriptExpr>),
+    Get(Node<GetExpr>),
+    Set(Node<SetExpr>),
 }
 
 #[derive(Debug, Clone)]
@@ -135,14 +135,14 @@ pub struct SetExpr {
 /// A statement is a node in the AST that does not evaluate to a value, but rather performs some side effect.
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Block(NodePtr<BlockStmt>),
-    If(NodePtr<IfStmt>),
-    While(NodePtr<WhileStmt>),
-    Continue(NodePtr<ContinueStmt>),
-    Break(NodePtr<BreakStmt>),
-    Return(NodePtr<ReturnStmt>),
-    Let(NodePtr<LetStmt>),
-    Expression(NodePtr<ExpressionStmt>),
+    Block(Node<BlockStmt>),
+    If(Node<IfStmt>),
+    While(Node<WhileStmt>),
+    Continue(Node<ContinueStmt>),
+    Break(Node<BreakStmt>),
+    Return(Node<ReturnStmt>),
+    Let(Node<LetStmt>),
+    Expression(Node<ExpressionStmt>),
 }
 
 #[derive(Debug, Clone)]
@@ -201,16 +201,16 @@ pub struct ExpressionStmt {
 /// An item is a node in the AST that is either directly compiled or represents higher-level features.
 #[derive(Debug, Clone)]
 pub enum Item {
-    Event(NodePtr<EventItem>),
-    Function(NodePtr<FunctionItem>),
-    Struct(NodePtr<StructItem>),
+    Event(Node<EventItem>),
+    Function(Node<FunctionItem>),
+    Struct(Node<StructItem>),
 }
 
 #[derive(Debug, Clone)]
 pub struct EventItem {
     pub init: Token,
     pub name: Identifier,
-    pub body: NodePtr<BlockStmt>,
+    pub body: Node<BlockStmt>,
 }
 
 #[derive(Debug, Clone)]

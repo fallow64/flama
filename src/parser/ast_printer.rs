@@ -6,7 +6,7 @@ use crate::{
         ast::{
             AssignExpr, BinaryExpr, BlockStmt, BreakStmt, CallExpr, ContinueStmt, EventItem,
             ExpressionStmt, FunctionItem, GetExpr, IfStmt, InstanciateExpr, LetStmt, ListExpr,
-            LiteralExpr, NameExpr, NodePtr, Program, ReturnStmt, SetExpr, Statement, StructItem,
+            LiteralExpr, NameExpr, Node, Program, ReturnStmt, SetExpr, Statement, StructItem,
             UnaryExpr, WhileStmt,
         },
         visitor::{ExpressionVisitable, ItemVisitable, StatementVisitable, Visitor},
@@ -27,7 +27,7 @@ impl Visitor for Printer {
 
     fn visit_unary_expr(
         &mut self,
-        expr: NodePtr<UnaryExpr>,
+        expr: Node<UnaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "({}{})",
@@ -38,7 +38,7 @@ impl Visitor for Printer {
 
     fn visit_binary_expr(
         &mut self,
-        expr: NodePtr<BinaryExpr>,
+        expr: Node<BinaryExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "({} {} {})",
@@ -50,12 +50,12 @@ impl Visitor for Printer {
 
     fn visit_literal_expr(
         &mut self,
-        expr: NodePtr<LiteralExpr>,
+        expr: Node<LiteralExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(expr.borrow().kind.to_string())
     }
 
-    fn visit_list_expr(&mut self, expr: NodePtr<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_list_expr(&mut self, expr: Node<ListExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let elements = expr
             .borrow()
             .elements
@@ -67,13 +67,13 @@ impl Visitor for Printer {
         Ok(format!("[{}]", elements))
     }
 
-    fn visit_name_expr(&mut self, expr: NodePtr<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_name_expr(&mut self, expr: Node<NameExpr>) -> FlamaResult<Self::ExpressionOutput> {
         Ok(expr.borrow().name.name.clone())
     }
 
     fn visit_instanciate_expr(
         &mut self,
-        expr: NodePtr<InstanciateExpr>,
+        expr: Node<InstanciateExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         let mut output = expr.borrow().name.name.clone();
         output.push_str(" {\n");
@@ -94,7 +94,7 @@ impl Visitor for Printer {
         // todo!()
     }
 
-    fn visit_call_expr(&mut self, expr: NodePtr<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_call_expr(&mut self, expr: Node<CallExpr>) -> FlamaResult<Self::ExpressionOutput> {
         let arguments = expr
             .borrow()
             .args
@@ -112,7 +112,7 @@ impl Visitor for Printer {
 
     fn visit_assign_expr(
         &mut self,
-        expr: NodePtr<AssignExpr>,
+        expr: Node<AssignExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "{} = {}",
@@ -123,7 +123,7 @@ impl Visitor for Printer {
 
     fn visit_subscript_expr(
         &mut self,
-        expr: NodePtr<SubscriptExpr>,
+        expr: Node<SubscriptExpr>,
     ) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "{}[{}]",
@@ -132,7 +132,7 @@ impl Visitor for Printer {
         ))
     }
 
-    fn visit_get_expr(&mut self, expr: NodePtr<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_get_expr(&mut self, expr: Node<GetExpr>) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "{}.{}",
             expr.borrow().object.accept(self)?,
@@ -140,7 +140,7 @@ impl Visitor for Printer {
         ))
     }
 
-    fn visit_set_expr(&mut self, expr: NodePtr<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
+    fn visit_set_expr(&mut self, expr: Node<SetExpr>) -> FlamaResult<Self::ExpressionOutput> {
         Ok(format!(
             "{}.{} = {}",
             expr.borrow().object.accept(self)?,
@@ -149,11 +149,11 @@ impl Visitor for Printer {
         ))
     }
 
-    fn visit_block_stmt(&mut self, stmt: NodePtr<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_block_stmt(&mut self, stmt: Node<BlockStmt>) -> FlamaResult<Self::StatementOutput> {
         self.visit_multiple(&stmt.borrow().statements)
     }
 
-    fn visit_if_stmt(&mut self, stmt: NodePtr<IfStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_if_stmt(&mut self, stmt: Node<IfStmt>) -> FlamaResult<Self::StatementOutput> {
         Ok(format!(
             "if ({}) {}",
             stmt.borrow().condition.accept(self)?,
@@ -161,7 +161,7 @@ impl Visitor for Printer {
         ))
     }
 
-    fn visit_while_stmt(&mut self, stmt: NodePtr<WhileStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_while_stmt(&mut self, stmt: Node<WhileStmt>) -> FlamaResult<Self::StatementOutput> {
         Ok(format!(
             "while ({}) {}",
             stmt.borrow().condition.accept(self)?,
@@ -171,21 +171,21 @@ impl Visitor for Printer {
 
     fn visit_continue_stmt(
         &mut self,
-        _stmt: NodePtr<ContinueStmt>,
+        _stmt: Node<ContinueStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         Ok("continue;".to_string())
     }
 
     fn visit_break_stmt(
         &mut self,
-        _stmt: NodePtr<BreakStmt>,
+        _stmt: Node<BreakStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         Ok("break;".to_string())
     }
 
     fn visit_return_stmt(
         &mut self,
-        stmt: NodePtr<ReturnStmt>,
+        stmt: Node<ReturnStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         let value = match &stmt.borrow().value {
             Some(val) => format!(" {}", val.accept(self)?),
@@ -195,7 +195,7 @@ impl Visitor for Printer {
         Ok(format!("return{};", value))
     }
 
-    fn visit_let_stmt(&mut self, stmt: NodePtr<LetStmt>) -> FlamaResult<Self::StatementOutput> {
+    fn visit_let_stmt(&mut self, stmt: Node<LetStmt>) -> FlamaResult<Self::StatementOutput> {
         let keyword = stmt.borrow().kind.to_string();
 
         let type_annotation = match &stmt.borrow().type_annotation {
@@ -219,12 +219,12 @@ impl Visitor for Printer {
 
     fn visit_expression_stmt(
         &mut self,
-        stmt: NodePtr<ExpressionStmt>,
+        stmt: Node<ExpressionStmt>,
     ) -> FlamaResult<Self::StatementOutput> {
         Ok(format!("{};", stmt.borrow().expression.accept(self)?))
     }
 
-    fn visit_event_item(&mut self, item: NodePtr<EventItem>) -> FlamaResult<Self::ItemOutput> {
+    fn visit_event_item(&mut self, item: Node<EventItem>) -> FlamaResult<Self::ItemOutput> {
         Ok(format!(
             "event {} {}",
             item.borrow().name.name,
@@ -234,7 +234,7 @@ impl Visitor for Printer {
 
     fn visit_function_item(
         &mut self,
-        item: NodePtr<FunctionItem>,
+        item: Node<FunctionItem>,
     ) -> FlamaResult<Self::ItemOutput> {
         Ok(format!(
             "fn {}({}) {}",
@@ -250,7 +250,7 @@ impl Visitor for Printer {
         ))
     }
 
-    fn visit_struct_item(&mut self, decl: NodePtr<StructItem>) -> FlamaResult<Self::ItemOutput> {
+    fn visit_struct_item(&mut self, decl: Node<StructItem>) -> FlamaResult<Self::ItemOutput> {
         let mut output = String::from("struct ");
 
         output.push_str(&decl.borrow().name.name);
