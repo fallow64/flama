@@ -52,6 +52,8 @@ impl Parser {
         parser
     }
 
+    /// Parses the program. If an error is encountered, it is added to the list of errors and continues.
+    /// If there are any errors, they are returned. Otherwise, the resulting AST is returned.
     pub fn parse_program(self) -> Result<Program, Vec<FlamaError>> {
         let source_path = self.source_path.clone();
         let mut items = vec![];

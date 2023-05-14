@@ -78,6 +78,7 @@ pub enum TokenType {
 
     // special
     Identifier,
+    /// Note: The string's content is in the lexeme, which included the starting and ending quotes, and hasn't been unescaped.
     String,
     Number,
 }

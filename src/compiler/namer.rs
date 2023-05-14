@@ -2,6 +2,8 @@ use uuid::Uuid;
 
 use super::builder::{CodeValue, VariableScope};
 
+/// Mangles names to make them unique.
+/// Currently not very complicated, but will be expanded in the future.
 pub struct Namer;
 
 impl Namer {

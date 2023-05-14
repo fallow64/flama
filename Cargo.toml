@@ -10,6 +10,7 @@ publish = false # for now
 
 [dependencies]
 base64 = "0.21.0"
+clap = { version = "4.2.3", features = ["derive"] }
 colored = "2.0.0"
 flate2 = "1.0.25"
 serde = { version = "1.0.159", features = ["derive"] }

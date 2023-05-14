@@ -87,6 +87,7 @@ impl Lexer {
                 return Ok(self.make_spanned(TokenType::String));
             }
 
+            // do not handle the unescaping here, do that in the parser
             escaped = consumed == '\\';
         }
 
@@ -97,9 +98,6 @@ impl Lexer {
     fn handle_number(&mut self) -> Token {
         let mut chars: Vec<char> = vec![self.source[self.current - 1]]; // include the current character
 
-        // allow underscores for stuff like 1_000_000_000
-        // we could do some type of check to prevent double underscores
-        // or underscores before the decimal point, but this is fine for now
         while self.peek().is_ascii_digit() {
             chars.push(self.advance());
         }
@@ -116,7 +114,7 @@ impl Lexer {
 
     /// Handles an identifier or keyword. Assumes that the first character has already been consumed.
     fn handle_identifier(&mut self) -> Token {
-        while self.peek().is_alphanumeric() || self.peek() == '_' || self.peek() == '%' {
+        while self.peek().is_alphanumeric() || self.peek() == '_' {
             self.advance();
         }
 
@@ -175,6 +173,8 @@ impl Lexer {
 
     /// Returns the next character in the source code. If the end of the source code has been reached, returns '\0'.
     fn peek(&self) -> char {
+        // to avoid a bunch of options, just return '\0' if we are at the end
+        // since most of the time this is just used as a comparison
         if self.is_at_end() {
             '\0'
         } else {
@@ -191,13 +191,15 @@ impl Lexer {
         }
     }
 
-    /// If the next character is the given character, consumes it and returns `cons`. Otherwise, returns `alt`.
+    /// If the next character is the given character, consume it and returns `cons`. Otherwise, returns `alt`.
     fn if_char_else(&mut self, condition: char, cons: TokenType, alt: TokenType) -> Token {
         let result = if self.is_match(condition) { cons } else { alt };
         self.make_spanned(result)
     }
 
-    /// If the next character is the given character, consumes it and returns `true`. Otherwise, returns `false`.
+    /// If the next character is the given character, consume it and returns `true`. Otherwise, returns `false`.
+    /// 
+    /// Tricky because the parser also has an `is_match` function, but that one doesn't consume.
     fn is_match(&mut self, condition: char) -> bool {
         if self.peek() != condition {
             false

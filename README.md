@@ -1,3 +1,5 @@
+# WARNING: WIP. DO NOT USE
+
 # 🔥 Flama
 
 Flama is a domain-specific programming language designed for the [Diamondfire](https://mcdiamondfire.com) Minecraft server. Flama compiles your code into Diamondfire templates.

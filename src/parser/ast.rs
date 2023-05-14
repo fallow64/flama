@@ -12,6 +12,7 @@ use crate::{
 
 pub type Node<T> = Rc<RefCell<T>>;
 
+/// Represents the AST of a program and any information needed to compile it.
 pub struct Program {
     pub signatures: Vec<FunctionSignature>,
     pub typedefs: Vec<Node<StructItem>>,
@@ -133,6 +134,8 @@ pub struct SetExpr {
 // ------------------------- STATEMENTS -------------------------
 
 /// A statement is a node in the AST that does not evaluate to a value, but rather performs some side effect.
+/// There is also a seperate type of statement called a declaration, which is a statement that declares a variable.
+/// These are essentially statements, so they are not distinguished, but are used in the parser.
 #[derive(Debug, Clone)]
 pub enum Statement {
     Block(Node<BlockStmt>),
@@ -198,7 +201,7 @@ pub struct ExpressionStmt {
 
 // ------------------------- ITEMS -------------------------
 
-/// An item is a node in the AST that is either directly compiled or represents higher-level features.
+/// An item is a node in the AST that is either directly compiled to a template or represents higher-level features.
 #[derive(Debug, Clone)]
 pub enum Item {
     Event(Node<EventItem>),
