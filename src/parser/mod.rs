@@ -41,7 +41,9 @@ impl Parser {
             lexer,
             queued_errors: vec![],
             source_path,
+            // `loop_depth` instead of `in_loop` because loops can be nested
             loop_depth: 0,
+            // `in_function` instead of `function_depth` because functions can't be nested
             in_function: false,
             current_token: None,
             peek_token: None,
